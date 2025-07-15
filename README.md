@@ -20,14 +20,6 @@ python run.py
 
 Visit http://localhost:8000
 
-## Journals Tracked
-
-- **Annals of Statistics** (64 papers)
-- **Journal of Machine Learning Research** (115 papers with abstracts)
-- **Journal of the American Statistical Association** (66 papers)
-- **Journal of the Royal Statistical Society Series B** (40 papers)
-- **Biometrika** (27 papers)
-
 ## Tech Stack
 
 - **Backend**: FastAPI, SQLAlchemy, BeautifulSoup
