@@ -89,75 +89,114 @@ class JMLRScraper(BaseScraper):
         )
     
     def scrape_papers(self) -> List[Dict]:
+        """Scrape papers from JMLR latest papers section"""
         papers = []
         try:
-            response = self.session.get(self.base_url)
+            print(f"Attempting to scrape {self.journal_name} from {self.base_url}")
+            
+            response = self.session.get(self.base_url, timeout=30)
             response.raise_for_status()
+            
+            print(f"Successfully accessed {self.journal_name} (Status: {response.status_code})")
             
             soup = BeautifulSoup(response.content, 'html.parser')
             
             # Find the "Latest papers" section
-            latest_section = None
+            latest_heading = None
             for heading in soup.find_all(['h1', 'h2', 'h3']):
-                if 'latest' in heading.get_text().lower():
-                    latest_section = heading.find_next_sibling('ul') or heading.find_next('ul')
+                if 'latest papers' in heading.get_text().lower():
+                    latest_heading = heading
                     break
             
-            if latest_section:
-                for li in latest_section.find_all('li'):
-                    paper_data = self._parse_jmlr_paper(li)
-                    if paper_data:
-                        papers.append(paper_data)
+            if not latest_heading:
+                print(f"No 'Latest papers' section found for {self.journal_name}")
+                return papers
+            
+            print(f"Found 'Latest papers' section")
+            
+            # Get all content after the heading until next h2
+            current = latest_heading.next_sibling
+            while current:
+                if current.name == 'p':
+                    # Look for all dl elements in this p
+                    dl_elements = current.find_all('dl')
+                    for dl in dl_elements:
+                        dt_elements = dl.find_all('dt')
+                        dd_elements = dl.find_all('dd')
                         
+                        for i in range(len(dt_elements)):
+                            if i < len(dd_elements):
+                                paper_data = self._parse_jmlr_paper(dt_elements[i], dd_elements[i])
+                                if paper_data:
+                                    papers.append(paper_data)
+                                    print(f"Extracted: {paper_data['title'][:50]}...")
+                
+                current = current.next_sibling
+                if current and current.name == 'h2':  # Stop at next heading
+                    break
+            
+            print(f"Successfully scraped {len(papers)} papers from {self.journal_name}")
+            
         except Exception as e:
-            print(f"Error scraping JMLR: {e}")
+            print(f"Error scraping {self.journal_name}: {e}")
         
         return papers
     
-    def _parse_jmlr_paper(self, li_element) -> Optional[Dict]:
+    def _parse_jmlr_paper(self, dt_element, dd_element) -> Optional[Dict]:
+        """Extract paper data from dt (title) and dd (authors/links) elements"""
         try:
-            text = li_element.get_text()
-            links = li_element.find_all('a')
+            # Extract title
+            title = dt_element.get_text(strip=True)
             
-            # Extract title, authors, and year
-            lines = [line.strip() for line in text.split('\n') if line.strip()]
-            if len(lines) < 2:
-                return None
+            # Extract authors and year from dd element
+            dd_text = dd_element.get_text(strip=True)
             
-            title = lines[0]
-            author_year_line = lines[1]
+            # Extract authors (before year)
+            authors = []
+            year = None
             
-            # Extract year
-            year_match = re.search(r'\b(19|20)\d{2}\b', author_year_line)
-            year = year_match.group() if year_match else None
+            # Look for year patterns (2025, 2024, etc.)
+            year_match = re.search(r', (\d{4})\.\s*\[', dd_text)
+            if year_match:
+                year = int(year_match.group(1))
+                authors_text = dd_text.split(f', {year}.')[0]
+                
+                # Split authors by comma and clean
+                author_parts = [name.strip() for name in authors_text.split(',')]
+                authors = [name for name in author_parts if name]
             
-            # Extract authors (everything before the year)
-            authors_text = author_year_line
-            if year:
-                authors_text = author_year_line.replace(year, '').strip()
-            
-            # Clean up authors text
-            authors_text = re.sub(r'[^\w\s,.-]', '', authors_text).strip(',. ')
-            authors = [name.strip() for name in authors_text.split(',') if name.strip()]
-            
-            # Extract URLs
+            # Extract links
+            url = None
             pdf_url = None
-            abstract_url = None
+            
+            links = dd_element.find_all('a')
             for link in links:
                 href = link.get('href', '')
-                text = link.get_text().lower()
-                if 'pdf' in text:
-                    pdf_url = urljoin(self.base_url, href)
-                elif 'abs' in text:
-                    abstract_url = urljoin(self.base_url, href)
+                link_text = link.get_text(strip=True).lower()
+                
+                if link_text == 'abs' and not url:
+                    url = f"https://www.jmlr.org{href}" if href.startswith('/') else href
+                elif link_text == 'pdf' and not pdf_url:
+                    pdf_url = f"https://www.jmlr.org{href}" if href.startswith('/') else href
+            
+            # Set publication date if year is available
+            publication_date = None
+            if year:
+                try:
+                    publication_date = datetime(year, 1, 1)  # Set to January 1st of the year
+                except:
+                    pass
             
             return {
                 'title': title,
-                'authors': authors,
-                'publication_year': year,
+                'url': url,
                 'pdf_url': pdf_url,
-                'url': abstract_url,
+                'authors': authors,
+                'abstract': None,  # Not available in listing
+                'doi': None,  # Not available in listing
                 'journal': self.journal_name,
+                'publication_date': publication_date,
+                'section': None,  # Not available in listing
                 'scraped_date': datetime.utcnow()
             }
             
