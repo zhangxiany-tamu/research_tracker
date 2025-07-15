@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Journals - Research Tracker{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1><i class="fas fa-book me-2"></i>Journals</h1>
+        <p class="lead">Leading statistics and machine learning journals tracked by this application</p>
+    </div>
+</div>
+
+<div class="row">
+    {% for journal in journals %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">{{ journal.name }}</h5>
+                <p class="card-text">
+                    <strong>Abbreviation:</strong> {{ journal.abbreviation }}<br>
+                    <strong>Papers tracked:</strong> {{ journal.papers | length }}
+                </p>
+                <div class="d-flex gap-2">
+                    <a href="{{ journal.url }}" class="btn btn-outline-primary btn-sm" target="_blank">
+                        <i class="fas fa-external-link-alt me-1"></i>Journal Site
+                    </a>
+                    <a href="/papers?journal={{ journal.name }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-list me-1"></i>View Papers
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>About These Journals</h5>
+            </div>
+            <div class="card-body">
+                <p>This application tracks papers from statistics and machine learning journals:</p>
+                <ul>
+                    <li><strong>Annals of Statistics (AOS):</strong> Theoretical statistics</li>
+                    <li><strong>Journal of the American Statistical Association (JASA):</strong> Statistics across all areas</li>
+                    <li><strong>Journal of the Royal Statistical Society Series B (JRSS-B):</strong> Statistical methodology</li>
+                    <li><strong>Biometrika:</strong> Statistics and data science</li>
+                    <li><strong>Journal of Machine Learning Research (JMLR):</strong> Open-access machine learning journal</li>
+                </ul>
+                <p class="text-muted mb-0">Papers are automatically scraped from journal websites and advance article pages.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

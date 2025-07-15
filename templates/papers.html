@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Papers - Research Tracker{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1><i class="fas fa-file-alt me-2"></i>Papers</h1>
+        
+        <!-- Filters -->
+        <div class="card">
+            <div class="card-body">
+                <form method="get" class="row g-3" id="filterForm">
+                    <div class="col-md-3">
+                        <label for="journal" class="form-label">Journal</label>
+                        <select class="form-select" id="journal" name="journal">
+                            <option value="">All Journals</option>
+                            {% for journal in journals %}
+                            <option value="{{ journal.name }}" {% if selected_journal == journal.name %}selected{% endif %}>
+                                {{ journal.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="topic" class="form-label">Topic</label>
+                        <select class="form-select" id="topic" name="topic">
+                            <option value="">All Topics</option>
+                            {% for topic in topics %}
+                            <option value="{{ topic.name }}" {% if selected_topic == topic.name %}selected{% endif %}>
+                                {{ topic.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="author" class="form-label">Author</label>
+                        <input type="text" class="form-control" id="author" name="author" 
+                               value="{{ selected_author or '' }}" placeholder="Author name">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="days" class="form-label">Last N Days</label>
+                        <select class="form-select" id="days" name="days">
+                            <option value="7" {% if selected_days == 7 %}selected{% endif %}>7 days</option>
+                            <option value="30" {% if selected_days == 30 %}selected{% endif %}>30 days</option>
+                            <option value="90" {% if selected_days == 90 %}selected{% endif %}>90 days</option>
+                            <option value="">All time</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="sort" class="form-label">Sort By</label>
+                        <select class="form-select" id="sort" name="sort">
+                            <option value="date_desc" {% if selected_sort == 'date_desc' %}selected{% endif %}>Newest First</option>
+                            <option value="date_asc" {% if selected_sort == 'date_asc' %}selected{% endif %}>Oldest First</option>
+                            <option value="title_asc" {% if selected_sort == 'title_asc' %}selected{% endif %}>Title A-Z</option>
+                            <option value="title_desc" {% if selected_sort == 'title_desc' %}selected{% endif %}>Title Z-A</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary d-block">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        {% if papers %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <p class="text-muted mb-0">Found {{ papers | length }} papers</p>
+            <small class="text-muted">
+                <i class="fas fa-sort me-1"></i>
+                {% if selected_sort == 'date_asc' %}Sorted by: Oldest First
+                {% elif selected_sort == 'title_asc' %}Sorted by: Title A-Z
+                {% elif selected_sort == 'title_desc' %}Sorted by: Title Z-A
+                {% else %}Sorted by: Newest First
+                {% endif %}
+            </small>
+        </div>
+        
+        <div class="row">
+            {% for paper in papers %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card paper-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge bg-primary journal-badge">{{ paper.journal.abbreviation if paper.journal else 'Unknown' }}</span>
+                            <small class="text-muted">{{ paper.publication_date.strftime('%b %d, %Y') if paper.publication_date else (paper.scraped_date.strftime('%b %d, %Y') if paper.scraped_date else '') }}</small>
+                        </div>
+                        <h5 class="card-title">
+                            <a href="/paper/{{ paper.id }}" class="text-decoration-none">{{ paper.title }}</a>
+                        </h5>
+                        {% if paper.authors %}
+                        <p class="card-text text-muted small">
+                            <i class="fas fa-user me-1"></i>
+                            {{ (paper.authors | format_authors)[:3] | join(', ') }}
+                            {% if paper.authors | length > 3 %} et al.{% endif %}
+                        </p>
+                        {% endif %}
+                        {% if paper.abstract %}
+                        <p class="card-text small">
+                            {{ paper.abstract[:150] }}{% if paper.abstract | length > 150 %}...{% endif %}
+                        </p>
+                        {% endif %}
+                        {% if paper.topics %}
+                        <div class="mb-2">
+                            {% for topic in paper.topics[:3] %}
+                            <span class="badge bg-secondary topic-tag">{{ topic.name }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if paper.section %}
+                        <div class="mb-2">
+                            <span class="badge bg-info">{{ paper.section }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="d-flex gap-2">
+                            {% if paper.url %}
+                            <a href="{{ paper.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                <i class="fas fa-external-link-alt me-1"></i>View
+                            </a>
+                            {% endif %}
+                            {% if paper.pdf_url %}
+                            <a href="{{ paper.pdf_url }}" class="btn btn-sm btn-outline-danger" target="_blank">
+                                <i class="fas fa-file-pdf me-1"></i>PDF
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            No papers found matching your criteria. Try adjusting the filters or click "Update" to scrape for new papers.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Function to show loading state
+    function showLoading() {
+        const form = document.getElementById('filterForm');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            submitBtn.disabled = true;
+        }
+    }
+    
+    // Auto-submit form when sort dropdown changes
+    const sortSelect = document.getElementById('sort');
+    if (sortSelect) {
+        sortSelect.addEventListener('change', function() {
+            showLoading();
+            document.getElementById('filterForm').submit();
+        });
+    }
+    
+    // Also auto-submit for other select elements for better UX
+    const autoSubmitSelects = ['journal', 'topic', 'days'];
+    autoSubmitSelects.forEach(function(selectId) {
+        const select = document.getElementById(selectId);
+        if (select) {
+            select.addEventListener('change', function() {
+                showLoading();
+                document.getElementById('filterForm').submit();
+            });
+        }
+    });
+    
+    // Add change event to form elements for visual feedback
+    const allSelects = document.querySelectorAll('#filterForm select');
+    allSelects.forEach(function(select) {
+        select.addEventListener('change', function() {
+            this.style.borderColor = '#3498db';
+            setTimeout(() => {
+                this.style.borderColor = '';
+            }, 1000);
+        });
+    });
+});
+</script>
+{% endblock %}
