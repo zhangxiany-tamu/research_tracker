@@ -33,15 +33,16 @@ The Research Tracker is a web application designed to help statisticians and res
 
 2. **Journal of Machine Learning Research (JMLR)**:
    - URL: https://www.jmlr.org/
-   - Status: ✅ Scraper implemented but needs testing
-   - Structure: List format with paper details
+   - Status: ✅ Fully functional (115 papers with real abstracts and BibTeX)
+   - Features: Real abstracts from [abs] links, real BibTeX from [bib] links
+   - Structure: Definition list format with proper author ordering preserved
 
 3. **Journal of the American Statistical Association (JASA)**: 
    - URL: https://www.tandfonline.com/action/showAxaArticles?journalCode=uasa20&startPage=0
-   - Status: ✅ Fully functional (486 papers scraped across 10 pages)
+   - Status: ⚠️ Partially functional (66 papers via RSS fallback)
    - Publisher: Taylor & Francis (tandfonline.com)
-   - Pagination: Uses `startPage=k` parameter for different pages
-   - Breakthrough: Successfully bypassed 403 errors with proper headers and session management
+   - Issue: Cloudflare bot protection now blocks direct pagination access
+   - Fallback: RSS feeds provide limited recent papers
 
 4. **Journal of the Royal Statistical Society Series B (JRSS-B)**: 
    - URL: https://academic.oup.com/jrsssb/advance-articles
@@ -64,9 +65,16 @@ The Research Tracker is a web application designed to help statisticians and res
 ### Web Scraping
 - **Base scraper class** with session management and user-agent headers
 - **AOS scraper**: Successfully extracts papers from table structure
+- **JMLR scraper**: Real abstracts and BibTeX with proper author ordering
 - **Author extraction**: Parses author names from HTML, splits by commas and "and"
 - **Ordering**: Reverses page order so latest papers appear first
 - **Error handling**: Graceful failure with detailed logging
+
+### Preprints Integration
+- **Comprehensive platform links**: arXiv (Statistics, ML, Theory), bioRxiv, medRxiv, SSRN, IDEAS/RePEc
+- **Categorized by discipline**: Biology & Medicine, Economics & Social Sciences, General Science
+- **Modern UI**: Hover effects, icons, and responsive design
+- **Educational content**: Information about preprints and usage guidelines
 
 ### Topic Detection
 Automatic categorization using keyword matching for 13+ topics:
@@ -89,6 +97,7 @@ Automatic categorization using keyword matching for 13+ topics:
 - `GET /paper/{id}`: Individual paper detail page
 - `GET /journals`: Journal information page
 - `GET /topics`: Topics overview with paper counts
+- `GET /preprints`: Links to preprint servers and repositories
 - `POST /scrape`: Manual trigger for scraping all journals
 - `GET /api/papers`: JSON API for programmatic access
 
@@ -153,7 +162,8 @@ research_tracker/
 │   ├── papers.html
 │   ├── paper_detail.html
 │   ├── journals.html
-│   └── topics.html
+│   ├── topics.html
+│   └── preprints.html
 ├── static/
 │   └── style.css         # Custom CSS for professional styling
 ├── requirements.txt      # Python dependencies

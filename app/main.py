@@ -186,6 +186,115 @@ async def topics(request: Request, db: Session = Depends(get_db)):
         "topic_stats": topic_stats
     })
 
+@app.get("/preprints", response_class=HTMLResponse)
+async def preprints(request: Request):
+    # Define preprint platforms with their information
+    preprint_platforms = [
+        {
+            "category": "arXiv",
+            "platforms": [
+                {
+                    "name": "arXiv Statistics",
+                    "url": "https://arxiv.org/list/stat/new",
+                    "description": "New submissions in Statistics",
+                    "icon": "fas fa-chart-bar"
+                },
+                {
+                    "name": "arXiv Machine Learning", 
+                    "url": "https://arxiv.org/list/cs.LG/recent",
+                    "description": "Recent papers in Machine Learning",
+                    "icon": "fas fa-robot"
+                },
+                {
+                    "name": "arXiv Statistical Theory",
+                    "url": "https://arxiv.org/list/math.ST/recent", 
+                    "description": "Recent papers in Statistical Theory",
+                    "icon": "fas fa-calculator"
+                },
+                {
+                    "name": "arXiv Methodology",
+                    "url": "https://arxiv.org/list/stat.ME/recent",
+                    "description": "Recent papers in Statistical Methodology",
+                    "icon": "fas fa-tools"
+                },
+                {
+                    "name": "arXiv Applications",
+                    "url": "https://arxiv.org/list/stat.AP/recent",
+                    "description": "Recent papers in Statistical Applications",
+                    "icon": "fas fa-chart-line"
+                }
+            ]
+        },
+        {
+            "category": "Biology & Medicine",
+            "platforms": [
+                {
+                    "name": "bioRxiv",
+                    "url": "https://www.biorxiv.org/",
+                    "description": "Preprint server for biology",
+                    "icon": "fas fa-dna"
+                },
+                {
+                    "name": "medRxiv", 
+                    "url": "https://www.medrxiv.org/",
+                    "description": "Preprint server for health sciences",
+                    "icon": "fas fa-heartbeat"
+                },
+                {
+                    "name": "PubMed",
+                    "url": "https://pubmed.ncbi.nlm.nih.gov/",
+                    "description": "Database of biomedical literature",
+                    "icon": "fas fa-book-medical"
+                }
+            ]
+        },
+        {
+            "category": "Economics & Social Sciences",
+            "platforms": [
+                {
+                    "name": "SSRN",
+                    "url": "https://www.ssrn.com/",
+                    "description": "Social Science Research Network",
+                    "icon": "fas fa-users"
+                },
+                {
+                    "name": "IDEAS/RePEc",
+                    "url": "https://ideas.repec.org/",
+                    "description": "Research Papers in Economics database",
+                    "icon": "fas fa-chart-pie"
+                }
+            ]
+        },
+        {
+            "category": "General Science",
+            "platforms": [
+                {
+                    "name": "Research Square",
+                    "url": "https://www.researchsquare.com/",
+                    "description": "Preprint platform for all sciences",
+                    "icon": "fas fa-square"
+                },
+                {
+                    "name": "OSF Preprints",
+                    "url": "https://osf.io/preprints/",
+                    "description": "Open Science Framework preprints",
+                    "icon": "fas fa-globe"
+                },
+                {
+                    "name": "Preprints.org",
+                    "url": "https://www.preprints.org/",
+                    "description": "Multidisciplinary preprint platform",
+                    "icon": "fas fa-file-alt"
+                }
+            ]
+        }
+    ]
+    
+    return templates.TemplateResponse("preprints.html", {
+        "request": request,
+        "preprint_platforms": preprint_platforms
+    })
+
 @app.post("/scrape")
 async def trigger_scrape(db: Session = Depends(get_db)):
     """Manually trigger scraping of all journals"""

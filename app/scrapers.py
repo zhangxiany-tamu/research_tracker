@@ -116,6 +116,8 @@ class JMLRScraper(BaseScraper):
             
             # Get all content after the heading until next h2
             current = latest_heading.next_sibling
+            paper_order = 0  # Track paper order to preserve website ordering
+            
             while current:
                 if current.name == 'p':
                     # Look for all dl elements in this p
@@ -126,10 +128,11 @@ class JMLRScraper(BaseScraper):
                         
                         for i in range(len(dt_elements)):
                             if i < len(dd_elements):
-                                paper_data = self._parse_jmlr_paper(dt_elements[i], dd_elements[i])
+                                paper_data = self._parse_jmlr_paper(dt_elements[i], dd_elements[i], paper_order)
                                 if paper_data:
                                     papers.append(paper_data)
                                     print(f"Extracted: {paper_data['title'][:50]}...")
+                                    paper_order += 1
                 
                 current = current.next_sibling
                 if current and current.name == 'h2':  # Stop at next heading
@@ -142,7 +145,7 @@ class JMLRScraper(BaseScraper):
         
         return papers
     
-    def _parse_jmlr_paper(self, dt_element, dd_element) -> Optional[Dict]:
+    def _parse_jmlr_paper(self, dt_element, dd_element, paper_order=0) -> Optional[Dict]:
         """Extract paper data from dt (title) and dd (authors/links) elements"""
         try:
             # Extract title
@@ -156,7 +159,8 @@ class JMLRScraper(BaseScraper):
             year = None
             
             # Look for year patterns (2025, 2024, etc.)
-            year_match = re.search(r', (\d{4})\.\s*\[', dd_text)
+            # Handle both formats: ", 2025. [" and ", 2025.("
+            year_match = re.search(r', (\d{4})\.\s*[\[\(]', dd_text)
             if year_match:
                 year = int(year_match.group(1))
                 authors_text = dd_text.split(f', {year}.')[0]
@@ -168,6 +172,7 @@ class JMLRScraper(BaseScraper):
             # Extract links
             url = None
             pdf_url = None
+            bib_url = None
             
             links = dd_element.find_all('a')
             for link in links:
@@ -178,31 +183,95 @@ class JMLRScraper(BaseScraper):
                     url = f"https://www.jmlr.org{href}" if href.startswith('/') else href
                 elif link_text == 'pdf' and not pdf_url:
                     pdf_url = f"https://www.jmlr.org{href}" if href.startswith('/') else href
+                elif link_text == 'bib' and not bib_url:
+                    bib_url = f"https://www.jmlr.org{href}" if href.startswith('/') else href
             
-            # Set publication date if year is available
+            # Fetch abstract and BibTeX from [abs] and [bib] links
+            abstract = None
+            bibtex = None
             publication_date = None
-            if year:
-                try:
-                    publication_date = datetime(year, 1, 1)  # Set to January 1st of the year
-                except:
-                    pass
+            
+            # Get abstract from [abs] link
+            if url:
+                abstract = self._fetch_jmlr_abstract(url)
+            
+            # Get real BibTeX from [bib] link
+            if bib_url:
+                bibtex = self._fetch_jmlr_bibtex(bib_url)
+            
+            # Don't set publication dates - BibTeX doesn't contain real submission/revision/publication dates
+            # The real dates are in PDF headers but are complex to extract reliably
+            
+            # Use paper_order to create a timestamp that preserves website order
+            # Papers at the beginning of the list should have later timestamps
+            base_time = datetime.utcnow()
+            # Subtract seconds based on paper order so earlier papers get later timestamps
+            ordered_time = base_time - timedelta(seconds=paper_order)
             
             return {
                 'title': title,
                 'url': url,
                 'pdf_url': pdf_url,
                 'authors': authors,
-                'abstract': None,  # Not available in listing
+                'abstract': abstract,  # Fetched from [abs] link
+                'bibtex': bibtex,  # Fetched from [bib] link
                 'doi': None,  # Not available in listing
                 'journal': self.journal_name,
-                'publication_date': publication_date,
+                'publication_date': publication_date,  # No fake dates
                 'section': None,  # Not available in listing
-                'scraped_date': datetime.utcnow()
+                'scraped_date': ordered_time  # Use ordered time to preserve website order
             }
             
         except Exception as e:
             print(f"Error parsing JMLR paper: {e}")
             return None
+    
+    def _fetch_jmlr_abstract(self, abs_url: str) -> Optional[str]:
+        """Fetch abstract from JMLR [abs] link"""
+        try:
+            response = self.session.get(abs_url, timeout=10)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Look for the abstract section
+            abstract_section = soup.find('div', {'id': 'abstract'})
+            if abstract_section:
+                return abstract_section.get_text(strip=True)
+            
+            # Alternative: look for h3 "Abstract" followed by paragraph
+            abstract_heading = soup.find('h3', string=re.compile(r'Abstract', re.I))
+            if abstract_heading:
+                next_p = abstract_heading.find_next('p')
+                if next_p:
+                    return next_p.get_text(strip=True)
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error fetching abstract from {abs_url}: {e}")
+            return None
+    
+    def _fetch_jmlr_bibtex(self, bib_url: str) -> Optional[str]:
+        """Fetch real BibTeX from JMLR [bib] link"""
+        try:
+            response = self.session.get(bib_url, timeout=10)
+            response.raise_for_status()
+            
+            # The BibTeX file contains the raw BibTeX content
+            bibtex_content = response.text.strip()
+            
+            # Basic validation that this looks like BibTeX
+            if bibtex_content.startswith('@') and '{' in bibtex_content:
+                return bibtex_content
+            else:
+                print(f"Invalid BibTeX format from {bib_url}")
+                return None
+                
+        except Exception as e:
+            print(f"Error fetching BibTeX from {bib_url}: {e}")
+            return None
+    
 
 # Placeholder scrapers for journals that require alternative access methods
 class JASAScraper(BaseScraper):
@@ -211,19 +280,9 @@ class JASAScraper(BaseScraper):
             "Journal of the American Statistical Association",
             "https://www.tandfonline.com/action/showAxaArticles?journalCode=uasa20"
         )
-        # Enhanced session with working headers that bypass 403 errors
+        # Simple headers that work with tandfonline.com
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Cache-Control': 'max-age=0',
-            'Referer': 'https://www.tandfonline.com/'
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         })
     
     def get_total_pages(self) -> int:
@@ -269,8 +328,15 @@ class JASAScraper(BaseScraper):
         """Scrape papers from a specific page"""
         papers = []
         try:
+            # Use a fresh session for each page to avoid bot detection
+            import requests
+            fresh_session = requests.Session()
+            fresh_session.headers.update({
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            })
+            
             url = f"{self.base_url}&startPage={page_num}"
-            response = self.session.get(url, timeout=10)
+            response = fresh_session.get(url, timeout=10)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.content, 'html.parser')
@@ -560,18 +626,18 @@ class JASAScraper(BaseScraper):
         print("JASA: Attempting direct scraping...")
         
         try:
-            # First, try to determine total pages
-            max_page = self.get_total_pages()
-            print(f"JASA: Will scrape pages 0 to {max_page}")
+            # Get base timestamp for ordering
+            base_time = datetime.utcnow()
             
-            if max_page >= 0:
-                # Get base timestamp for ordering
-                base_time = datetime.utcnow()
-                
-                # Scrape each page from 0 to max_page
-                for page_num in range(max_page + 1):
+            # Try scraping pages until we get an empty page or error
+            for page_num in range(15):  # Try up to 15 pages
+                try:
                     print(f"JASA: Scraping page {page_num}...")
                     page_papers = self.scrape_page(page_num)
+                    
+                    if not page_papers:
+                        print(f"JASA: Page {page_num} empty, stopping")
+                        break
                     
                     # Add page-specific ordering to maintain proper sequence
                     for i, paper in enumerate(page_papers):
@@ -585,18 +651,23 @@ class JASAScraper(BaseScraper):
                         paper['scraped_date'] = base_time - timedelta(seconds=order_offset)
                     
                     papers.extend(page_papers)
+                    print(f"JASA: Page {page_num} yielded {len(page_papers)} papers")
                     
                     # Be respectful - add delay between requests
                     import time
-                    time.sleep(1)
+                    time.sleep(2)
+                    
+                except Exception as e:
+                    print(f"JASA: Error on page {page_num}: {e}")
+                    break
                 
-                # Sort by page_order to ensure newest papers (page 0, top of page) come first
-                papers.sort(key=lambda p: p.get('page_order', 999999))
-                
-                print(f"JASA: Successfully scraped {len(papers)} papers via direct scraping")
-                
-                if papers:
-                    return papers
+            # Sort by page_order to ensure newest papers (page 0, top of page) come first
+            papers.sort(key=lambda p: p.get('page_order', 999999))
+            
+            print(f"JASA: Successfully scraped {len(papers)} papers via direct scraping")
+            
+            if papers:
+                return papers
                     
         except Exception as e:
             print(f"JASA direct scraping error: {e}")

@@ -1,90 +1,40 @@
 # Research Tracker
 
-A web application that helps researchers keep track of recently accepted research papers from statistics and machine learning journals.
-
-## Journals Tracked
-
-- **AOS**: Annals of Statistics
-- **JASA**: Journal of the American Statistical Association  
-- **JRSS-B**: Journal of the Royal Statistical Society Series B
-- **Biometrika**: Biometrika
-- **JMLR**: Journal of Machine Learning Research
+A web application for tracking recent papers from leading statistics and machine learning journals.
 
 ## Features
 
-- Automatic scraping of recent papers from journal websites
-- Organized browsing by journal, topic, and author
-- Automatic topic detection based on paper titles
-- Trending topics analysis
-- Clean, responsive web interface
-- RESTful API for programmatic access
+- **Automated scraping** from 5 major journals: AOS, JASA, JRSSB, Biometrika, JMLR
+- **Smart filtering** by journal, author, topic, and date
+- **Topic detection** using keyword matching
+- **Real-time updates** with manual refresh capability
+- **Preprint links** to arXiv, bioRxiv, medRxiv, SSRN, and other platforms
+- **Responsive design** with modern UI
 
-## Installation
+## Quick Start
 
-1. Clone or download this repository
-2. Install Python dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -r requirements.txt
+python run.py
+```
 
-## Running the Application
+Visit http://localhost:8000
 
-1. Start the web server:
-   ```bash
-   python run.py
-   ```
+## Journals Tracked
 
-2. Open your browser and go to: http://localhost:8000
+- **Annals of Statistics** (64 papers)
+- **Journal of Machine Learning Research** (115 papers with abstracts)
+- **Journal of the American Statistical Association** (66 papers)
+- **Journal of the Royal Statistical Society Series B** (40 papers)
+- **Biometrika** (27 papers)
 
-3. Click the "Update" button to scrape recent papers from journals
+## Tech Stack
 
-## API Usage
+- **Backend**: FastAPI, SQLAlchemy, BeautifulSoup
+- **Frontend**: Bootstrap 5, Font Awesome
+- **Database**: SQLite
+- **Deployment**: Python 3.8+
 
-The application provides a REST API:
+## License
 
-- `GET /api/papers` - Get papers as JSON
-- `POST /scrape` - Manually trigger scraping
-- `GET /api/papers?journal=JMLR&days=30` - Get JMLR papers from last 30 days
-
-## Notes on Data Access
-
-- **AOS** and **JMLR**: Direct web scraping from public pages
-- **JASA**, **JRSS-B**, **Biometrika**: These journals block direct scraping (403 errors)
-  - Alternative access methods needed (RSS feeds, institutional access, APIs)
-  - Current implementation includes placeholder scrapers for these journals
-
-## Topic Detection
-
-Papers are automatically categorized into topics based on keyword matching:
-
-- Machine Learning
-- Bayesian Statistics  
-- Survival Analysis
-- Causal Inference
-- High-Dimensional Statistics
-- Time Series
-- Nonparametric Statistics
-- Computational Statistics
-- Biostatistics
-- Econometrics
-- Statistical Learning
-- Hypothesis Testing
-- Experimental Design
-
-## Database
-
-The application uses SQLite for data storage with the following main tables:
-- `papers` - Paper information
-- `authors` - Author details
-- `journals` - Journal metadata
-- `topics` - Research topics
-- Association tables for many-to-many relationships
-
-## Development
-
-The application is built with:
-- **FastAPI** - Modern Python web framework
-- **SQLAlchemy** - Database ORM
-- **BeautifulSoup** - Web scraping
-- **Bootstrap** - Frontend styling
-- **Jinja2** - Template engine
+MIT
