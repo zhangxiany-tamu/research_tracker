@@ -328,8 +328,14 @@ class JASAScraper(BaseScraper):
         """Scrape papers from a specific page"""
         papers = []
         try:
-            # Use a fresh session for each page to avoid bot detection
+            # Use a completely fresh session for each page to avoid session-based blocking
             import requests
+            import time
+            
+            # Add longer delay to avoid rate limiting
+            if page_num > 0:
+                time.sleep(5)  # Increased delay
+            
             fresh_session = requests.Session()
             fresh_session.headers.update({
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -653,9 +659,9 @@ class JASAScraper(BaseScraper):
                     papers.extend(page_papers)
                     print(f"JASA: Page {page_num} yielded {len(page_papers)} papers")
                     
-                    # Be respectful - add delay between requests
+                    # Be respectful - add delay between requests  
                     import time
-                    time.sleep(2)
+                    time.sleep(5)
                     
                 except Exception as e:
                     print(f"JASA: Error on page {page_num}: {e}")

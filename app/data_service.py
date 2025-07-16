@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from app.models import Paper, Author, Journal, Topic
+from app.models import Paper, Author, Journal, Topic, paper_authors
 from typing import Dict, List, Optional
 import re
 
@@ -106,6 +106,7 @@ class DataService:
                 doi=paper_data.get('doi'),
                 url=paper_data.get('url'),
                 pdf_url=paper_data.get('pdf_url'),
+                bibtex=paper_data.get('bibtex'),
                 publication_date=paper_data.get('publication_date'),
                 accepted_date=paper_data.get('accepted_date'),
                 scraped_date=paper_data.get('scraped_date'),
@@ -116,12 +117,19 @@ class DataService:
             self.db.add(paper)
             self.db.flush()  # Get paper ID
             
-            # Add authors
+            # Add authors with proper ordering
             if 'authors' in paper_data and paper_data['authors']:
-                for author_name in paper_data['authors']:
+                for order, author_name in enumerate(paper_data['authors']):
                     if author_name.strip():
                         author = self.get_or_create_author(author_name.strip())
-                        paper.authors.append(author)
+                        # Insert into association table with order
+                        self.db.execute(
+                            paper_authors.insert().values(
+                                paper_id=paper.id,
+                                author_id=author.id,
+                                author_order=order
+                            )
+                        )
             
             # Auto-detect and add topics
             detected_topics = self.extract_topics_from_title(paper_data['title'])

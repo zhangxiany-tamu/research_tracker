@@ -420,15 +420,17 @@ self.session.headers.update({
 3. Access at: http://localhost:8000
 4. Trigger scraping: Click "Update" button or POST to /scrape
 
-### Current Data
-- **486 papers** successfully scraped from Journal of the American Statistical Association (JASA)
-- **64 papers** successfully scraped from Annals of Statistics
-- **40 papers** successfully scraped from Journal of the Royal Statistical Society Series B (JRSSB)
-- **27 papers** successfully scraped from Biometrika
+### Current Data (July 2025)
+- **136 papers** from Journal of the American Statistical Association (JASA) - chronologically ordered
+- **64 papers** from Annals of Statistics
+- **40 papers** from Journal of the Royal Statistical Society Series B (JRSSB)
+- **27 papers** from Biometrika
+- **115 papers** from Journal of Machine Learning Research (JMLR)
+- **Total: 382 papers** across all journals
 - **Auto-categorized** into relevant research topics
 - **Authors properly extracted** and linked with consistent "others" ordering
 - **Publication dates and sections** properly displayed
-- **Latest paper**: "Leveraging External Data for Testing Experimental Therapies with Biomarker Interactions in Randomized Clinical Trials" (Biometrika)
+- **Chronological ordering fixed**: JASA papers properly ordered with newest first
 
 ## Future Enhancements
 
@@ -445,6 +447,26 @@ self.session.headers.update({
 - Integration with academic databases (ArXiv, PubMed)
 - Machine learning for better topic classification
 
+## Recent Updates (July 2025)
+
+### Major Database Reorganization
+- **JASA chronological ordering fixed**: All 136 papers properly ordered with newest first
+- **Manual HTML extraction**: Successfully processed page1.html and page2.html to add missing papers
+- **Title formatting corrections**: Fixed LaTeX formulas (e.g., "R₂" instead of "theR2Statistic")
+- **Position verification**: Key papers now in correct chronological positions
+- **Database integrity**: All 382 papers verified and properly organized
+
+### Project Cleanup and Optimization
+- **Removed temporary files**: Cleaned up debug scripts, test files, and one-time fix scripts
+- **Streamlined structure**: Removed unused frontend directory and HTML files
+- **Production ready**: Clean, maintainable codebase ready for deployment
+- **Future workflow optimized**: Only need to scrape page=0 for new JASA papers
+
+### Technical Infrastructure Updates
+- **Repository management**: Ready for GitHub upload and Google Cloud deployment
+- **Documentation updates**: CLAUDE.md reflects current clean system status
+- **Performance verification**: All systems tested and working correctly
+
 ## Lessons Learned
 
 ### From JASA Success (Major Breakthrough)
@@ -454,6 +476,12 @@ self.session.headers.update({
 4. **Multi-selector robustness**: Using multiple CSS selectors (`.hlFld-ContribAuthor`, `.entryAuthor`) ensures reliable data extraction
 5. **Database ordering preservation**: When scraping ordered data, use custom timestamps to preserve chronological order in database
 6. **Dynamic pagination detection**: Sequential page checking until empty page is more reliable than trying to parse pagination controls
+
+### From Recent Platform Integration
+7. **URL validation importance**: External links need regular verification (RePEc example)
+8. **User experience enhancement**: Preprint access significantly improves research workflow
+9. **Documentation maintenance**: Keep technical documentation current with implementation changes
+10. **Professional presentation**: Clean, concise README files attract more users
 
 ### From UI/UX Fixes
 7. **Journal name display**: Long journal names need abbreviations for clean UI (e.g., "JASA" instead of "Journal of the American Statistical Association")

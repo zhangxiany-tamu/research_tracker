@@ -237,6 +237,9 @@
                     <div class="col-md-6">
                         <h6>BibTeX Format</h6>
                         <div class="citation-box">
+                            {% if paper.bibtex %}
+                            <pre><code>{{ paper.bibtex }}</code></pre>
+                            {% else %}
                             <code>
 @article{paper{{ paper.id }},<br>
 &nbsp;&nbsp;title = { {{ paper.title }} },<br>
@@ -251,6 +254,7 @@
 &nbsp;&nbsp;url = { {{ paper.url }} }<br>
 }
                             </code>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

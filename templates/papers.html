@@ -44,7 +44,7 @@
                             <option value="7" {% if selected_days == 7 %}selected{% endif %}>7 days</option>
                             <option value="30" {% if selected_days == 30 %}selected{% endif %}>30 days</option>
                             <option value="90" {% if selected_days == 90 %}selected{% endif %}>90 days</option>
-                            <option value="">All time</option>
+                            <option value="" {% if selected_days is none %}selected{% endif %}>All time</option>
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -158,6 +158,19 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.disabled = true;
         }
     }
+    
+    // Function to clear loading state
+    function clearLoading() {
+        const form = document.getElementById('filterForm');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-search"></i>';
+            submitBtn.disabled = false;
+        }
+    }
+    
+    // Clear loading state when page loads
+    clearLoading();
     
     // Auto-submit form when sort dropdown changes
     const sortSelect = document.getElementById('sort');

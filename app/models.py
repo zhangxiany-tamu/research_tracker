@@ -10,7 +10,8 @@ paper_authors = Table(
     'paper_authors',
     Base.metadata,
     Column('paper_id', Integer, ForeignKey('papers.id'), primary_key=True),
-    Column('author_id', Integer, ForeignKey('authors.id'), primary_key=True)
+    Column('author_id', Integer, ForeignKey('authors.id'), primary_key=True),
+    Column('author_order', Integer, nullable=False, default=0)
 )
 
 # Association table for many-to-many relationship between papers and topics
@@ -60,6 +61,7 @@ class Paper(Base):
     doi = Column(String(200), nullable=True, unique=True)
     url = Column(String(500), nullable=True)
     pdf_url = Column(String(500), nullable=True)
+    bibtex = Column(Text, nullable=True)  # Store BibTeX citation
     publication_date = Column(DateTime, nullable=True)
     accepted_date = Column(DateTime, nullable=True)
     scraped_date = Column(DateTime, default=datetime.utcnow)
@@ -67,5 +69,5 @@ class Paper(Base):
     journal_id = Column(Integer, ForeignKey('journals.id'))
     
     journal = relationship("Journal", back_populates="papers")
-    authors = relationship("Author", secondary=paper_authors, back_populates="papers")
+    authors = relationship("Author", secondary=paper_authors, back_populates="papers", order_by=paper_authors.c.author_order)
     topics = relationship("Topic", secondary=paper_topics, back_populates="papers")
