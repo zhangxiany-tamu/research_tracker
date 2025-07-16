@@ -2,6 +2,8 @@
 
 A web application for tracking recent papers from leading statistics and machine learning journals.
 
+**Live Demo**: https://research-tracker-466018.uc.r.appspot.com
+
 ## Features
 
 - **Automated scraping** from 5 major journals: AOS, JASA, JRSSB, Biometrika, JMLR
