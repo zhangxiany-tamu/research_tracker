@@ -371,10 +371,18 @@ class JASAScraper(BaseScraper):
             article_containers = soup.select('.tocArticleEntry')
             print(f"JASA: Found {len(article_containers)} article containers")
             
+            # Get base timestamp for proper ordering
+            base_time = datetime.utcnow()
+            
             if article_containers:
-                for container in article_containers:
+                for i, container in enumerate(article_containers):
                     paper_data = self._extract_paper_from_container(container, page_num)
                     if paper_data:
+                        # Set proper ordering: papers at top of page are newer
+                        # Page 0 = newest page, index 0 = top of page (newest)
+                        order_offset = page_num * 1000 + i
+                        paper_data['scraped_date'] = base_time - timedelta(seconds=order_offset)
+                        paper_data['page_order'] = order_offset
                         papers.append(paper_data)
             else:
                 # Fallback to title-based approach
