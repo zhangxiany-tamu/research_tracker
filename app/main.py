@@ -304,6 +304,12 @@ async def trigger_scrape(db: Session = Depends(get_db)):
     results = {}
     for scraper in scrapers:
         try:
+            # For JASA, first update existing paper ordering to match website
+            if scraper.journal_name == "Journal of the American Statistical Association":
+                updated_count = scraper.update_paper_ordering(db)
+                results[f"{scraper.journal_name} (ordering)"] = f"Updated {updated_count} paper timestamps"
+            
+            # Then scrape for new papers
             papers_data = scraper.scrape_papers()
             count = 0
             for paper_data in papers_data:

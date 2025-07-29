@@ -652,6 +652,49 @@ class JASAScraper(BaseScraper):
         
         return papers
     
+    def update_paper_ordering(self, db_session) -> int:
+        """Update existing papers' timestamps to match website ordering"""
+        from app.models import Paper, Journal
+        
+        try:
+            # Get current website order
+            website_papers = self.scrape_page(0)
+            if not website_papers:
+                return 0
+            
+            # Find the journal
+            journal = db_session.query(Journal).filter(Journal.name == self.journal_name).first()
+            if not journal:
+                return 0
+            
+            base_time = datetime.utcnow()
+            updated_count = 0
+            
+            print(f"JASA: Updating paper order based on website...")
+            
+            for i, scraped_paper in enumerate(website_papers):
+                # Find this paper in database
+                existing_paper = db_session.query(Paper).filter(
+                    Paper.title == scraped_paper['title'],
+                    Paper.journal_id == journal.id
+                ).first()
+                
+                if existing_paper:
+                    # Update its timestamp to match website position
+                    new_timestamp = base_time - timedelta(seconds=i)
+                    existing_paper.scraped_date = new_timestamp
+                    updated_count += 1
+                    print(f"  Updated position {i+1}: {existing_paper.title[:50]}...")
+            
+            db_session.commit()
+            print(f"JASA: Updated timestamps for {updated_count} existing papers")
+            return updated_count
+            
+        except Exception as e:
+            print(f"Error updating paper ordering: {e}")
+            db_session.rollback()
+            return 0
+
     def scrape_papers(self) -> List[Dict]:
         """Scrape all papers from all available pages"""
         papers = []
