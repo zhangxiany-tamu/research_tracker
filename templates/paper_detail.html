@@ -3,18 +3,6 @@
 {% block title %}{{ paper.title }} - Research Tracker{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/">Home</a></li>
-                <li class="breadcrumb-item"><a href="/papers">Papers</a></li>
-                <li class="breadcrumb-item active">{{ paper.title[:50] }}{% if paper.title | length > 50 %}...{% endif %}</li>
-            </ol>
-        </nav>
-    </div>
-</div>
-
 <!-- Paper Header -->
 <div class="row mb-4">
     <div class="col-12">
@@ -22,13 +10,13 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-8">
-                        <div class="d-flex align-items-start mb-3">
-                            <span class="badge bg-primary fs-6 me-3">{{ paper.journal.abbreviation if paper.journal else 'Unknown' }}</span>
+                        <div class="mb-3">
+                            <span class="badge bg-light text-dark me-3">{{ paper.journal.abbreviation if paper.journal else 'Unknown' }}</span>
                             {% if paper.section %}
-                            <span class="badge bg-info fs-6 me-3">{{ paper.section }}</span>
+                            <span class="badge bg-light text-dark me-3">{{ paper.section }}</span>
                             {% endif %}
                             {% if paper.publication_date %}
-                            <span class="badge bg-success fs-6">{{ paper.publication_date.strftime('%b %d, %Y') }}</span>
+                            <span class="badge bg-light text-dark">{{ paper.publication_date.strftime('%b %d, %Y') }}</span>
                             {% endif %}
                         </div>
                         
@@ -65,12 +53,12 @@
                         <div class="text-end">
                             <div class="mb-3">
                                 {% if paper.url %}
-                                <a href="{{ paper.url }}" class="btn btn-primary btn-lg mb-2 d-block" target="_blank">
+                                <a href="{{ paper.url }}" class="btn btn-light btn-lg mb-2 d-block" target="_blank">
                                     <i class="fas fa-external-link-alt me-2"></i>View Full Paper
                                 </a>
                                 {% endif %}
                                 {% if paper.pdf_url %}
-                                <a href="{{ paper.pdf_url }}" class="btn btn-outline-danger btn-lg d-block" target="_blank">
+                                <a href="{{ paper.pdf_url }}" class="btn btn-outline-secondary btn-lg d-block" target="_blank">
                                     <i class="fas fa-file-pdf me-2"></i>Download PDF
                                 </a>
                                 {% endif %}
@@ -125,7 +113,7 @@
         <div class="card shadow-sm paper-info-card">
             <div class="card-header bg-white section-header">
                 <h5 class="mb-0">
-                    <i class="fas fa-file-text me-2 text-primary"></i>Abstract
+                    <i class="fas fa-file-text me-2"></i>Abstract
                 </h5>
             </div>
             <div class="card-body">
@@ -143,7 +131,7 @@
         <div class="card shadow-sm">
             <div class="card-header bg-white">
                 <h5 class="mb-0">
-                    <i class="fas fa-user-friends me-2 text-primary"></i>Author Details
+                    <i class="fas fa-user-friends me-2"></i>Author Details
                 </h5>
             </div>
             <div class="card-body">
@@ -179,7 +167,7 @@
         <div class="card shadow-sm">
             <div class="card-header bg-white">
                 <h5 class="mb-0">
-                    <i class="fas fa-tags me-2 text-primary"></i>Research Topics & Keywords
+                    <i class="fas fa-tags me-2"></i>Research Topics & Keywords
                 </h5>
             </div>
             <div class="card-body">
@@ -210,7 +198,7 @@
         <div class="card shadow-sm">
             <div class="card-header bg-white">
                 <h5 class="mb-0">
-                    <i class="fas fa-quote-left me-2 text-primary"></i>Citation Information
+                    <i class="fas fa-quote-left me-2"></i>Citation Information
                 </h5>
             </div>
             <div class="card-body">
@@ -268,17 +256,17 @@
     <div class="col-12">
         <div class="action-buttons">
             <div class="d-flex justify-content-between align-items-center">
-                <a href="/papers" class="btn btn-secondary btn-lg btn-action">
+                <a href="/papers" class="btn btn-light btn-lg btn-action">
                     <i class="fas fa-arrow-left me-2"></i>Back to Papers
                 </a>
                 
                 <div>
                     {% if paper.url %}
-                    <a href="{{ paper.url }}" class="btn btn-primary btn-lg btn-action me-2" target="_blank">
+                    <a href="{{ paper.url }}" class="btn btn-light btn-lg btn-action me-2" target="_blank">
                         <i class="fas fa-external-link-alt me-2"></i>View Full Paper
                     </a>
                     {% endif %}
-                    <a href="/papers?journal={{ paper.journal.name if paper.journal else '' }}" class="btn btn-outline-primary btn-lg btn-action">
+                    <a href="/papers?journal={{ paper.journal.name if paper.journal else '' }}" class="btn btn-outline-secondary btn-lg btn-action">
                         <i class="fas fa-search me-2"></i>More from {{ paper.journal.abbreviation if paper.journal else 'Journal' }}
                     </a>
                 </div>
@@ -287,23 +275,5 @@
     </div>
 </div>
 
-<!-- Related Papers Section (placeholder for future enhancement) -->
-<div class="row">
-    <div class="col-12">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white">
-                <h5 class="mb-0">
-                    <i class="fas fa-link me-2 text-primary"></i>Related Papers
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="related-papers-placeholder">
-                    <i class="fas fa-info-circle me-2"></i>
-                    Related papers functionality coming soon. This will show papers with similar topics or from the same authors.
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 {% endblock %}

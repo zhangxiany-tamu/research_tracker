@@ -3,17 +3,11 @@
 {% block title %}Journals - Research Tracker{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h1><i class="fas fa-book me-2"></i>Journals</h1>
-        <p class="lead">Leading statistics and machine learning journals tracked by this application</p>
-    </div>
-</div>
 
 <div class="row">
     {% for journal in journals %}
     <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100">
+        <div class="card h-100 minimal-card">
             <div class="card-body">
                 <h5 class="card-title">{{ journal.name }}</h5>
                 <p class="card-text">
@@ -21,10 +15,10 @@
                     <strong>Papers tracked:</strong> {{ journal.papers | length }}
                 </p>
                 <div class="d-flex gap-2">
-                    <a href="{{ journal.url }}" class="btn btn-outline-primary btn-sm" target="_blank">
+                    <a href="{{ journal.url }}" class="btn btn-light btn-sm" target="_blank">
                         <i class="fas fa-external-link-alt me-1"></i>Journal Site
                     </a>
-                    <a href="/papers?journal={{ journal.name }}" class="btn btn-primary btn-sm">
+                    <a href="/papers?journal={{ journal.name }}" class="btn btn-outline-secondary btn-sm">
                         <i class="fas fa-list me-1"></i>View Papers
                     </a>
                 </div>
@@ -36,9 +30,9 @@
 
 <div class="row mt-4">
     <div class="col-12">
-        <div class="card">
+        <div class="card minimal-card">
             <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>About These Journals</h5>
+                <h5 class="mb-0">About These Journals</h5>
             </div>
             <div class="card-body">
                 <p>This application tracks papers from statistics and machine learning journals:</p>

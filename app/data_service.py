@@ -87,7 +87,8 @@ class DataService:
         """Save paper data to database, return True if new paper was added"""
         try:
             # Check if paper already exists (by title and journal)
-            journal = self.db.query(Journal).filter(Journal.name == paper_data['journal']).first()
+            journal_name = paper_data.get('journal')
+            journal = self.db.query(Journal).filter(Journal.name == journal_name).first()
             if not journal:
                 return False
             
@@ -145,7 +146,9 @@ class DataService:
             return False
         except Exception as e:
             self.db.rollback()
-            print(f"Error saving paper: {e}")
+            print(f"Error saving paper '{paper_data.get('title', 'No title')[:50]}...': {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def get_trending_topics(self, days: int = 30) -> List[Dict]:

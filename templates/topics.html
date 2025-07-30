@@ -3,76 +3,56 @@
 {% block title %}Topics - Research Tracker{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h1><i class="fas fa-tags me-2"></i>Topics</h1>
-        <p class="lead">Research topics automatically detected from paper titles</p>
-    </div>
-</div>
 
-<div class="row">
-    {% if topic_stats %}
+{% if topic_stats %}
+<div class="row g-3">
     {% for topic_name, description, paper_count in topic_stats %}
-    <div class="col-md-6 col-lg-4 mb-3">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <h5 class="card-title">{{ topic_name }}</h5>
-                    <span class="badge bg-primary">{{ paper_count }}</span>
-                </div>
-                {% if description %}
-                <p class="card-text text-muted small">{{ description }}</p>
-                {% endif %}
-                <a href="/papers?topic={{ topic_name }}" class="btn btn-outline-primary btn-sm">
-                    <i class="fas fa-list me-1"></i>View Papers
-                </a>
+    <div class="col-md-6 col-lg-4">
+        <div class="minimal-card">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <h5 class="mb-0">{{ topic_name }}</h5>
+                <span class="text-muted small">{{ paper_count }}</span>
             </div>
+            {% if description %}
+            <p class="text-muted small mb-3">{{ description }}</p>
+            {% endif %}
+            <a href="/papers?topic={{ topic_name }}" class="btn btn-outline-primary btn-sm">
+                View Papers →
+            </a>
         </div>
     </div>
     {% endfor %}
-    {% else %}
-    <div class="col-12">
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>
-            No topics found. Topics are automatically detected when papers are scraped. Click "Update" to scrape for papers.
-        </div>
-    </div>
-    {% endif %}
 </div>
+{% else %}
+<div class="text-center py-5">
+    <p class="text-muted">No topics found. Topics are automatically detected when papers are scraped.</p>
+</div>
+{% endif %}
 
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>How Topic Detection Works</h5>
-            </div>
-            <div class="card-body">
-                <p>Topics are automatically assigned to papers based on keyword matching in paper titles. The system recognizes the following research areas:</p>
-                <div class="row">
-                    <div class="col-md-6">
-                        <ul>
-                            <li>Machine Learning</li>
-                            <li>Bayesian Statistics</li>
-                            <li>Survival Analysis</li>
-                            <li>Causal Inference</li>
-                            <li>High-Dimensional Statistics</li>
-                            <li>Time Series</li>
-                            <li>Nonparametric Statistics</li>
-                        </ul>
-                    </div>
-                    <div class="col-md-6">
-                        <ul>
-                            <li>Computational Statistics</li>
-                            <li>Biostatistics</li>
-                            <li>Econometrics</li>
-                            <li>Statistical Learning</li>
-                            <li>Hypothesis Testing</li>
-                            <li>Experimental Design</li>
-                        </ul>
-                    </div>
-                </div>
-                <p class="text-muted mb-0">Papers may be assigned to multiple topics based on their content.</p>
-            </div>
+<div class="mt-5 pt-4 border-top">
+    <h5 class="mb-3">How Topic Detection Works</h5>
+    <p class="text-muted mb-3">Topics are automatically assigned to papers based on keyword matching in paper titles. The system recognizes research areas including:</p>
+    <div class="row">
+        <div class="col-md-6">
+            <ul class="text-muted small list-unstyled">
+                <li>• Machine Learning</li>
+                <li>• Bayesian Statistics</li>
+                <li>• Survival Analysis</li>
+                <li>• Causal Inference</li>
+                <li>• High-Dimensional Statistics</li>
+                <li>• Time Series</li>
+                <li>• Nonparametric Statistics</li>
+            </ul>
+        </div>
+        <div class="col-md-6">
+            <ul class="text-muted small list-unstyled">
+                <li>• Computational Statistics</li>
+                <li>• Biostatistics</li>
+                <li>• Econometrics</li>
+                <li>• Statistical Learning</li>
+                <li>• Hypothesis Testing</li>
+                <li>• Experimental Design</li>
+            </ul>
         </div>
     </div>
 </div>

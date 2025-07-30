@@ -32,47 +32,64 @@ class AOSScraper(BaseScraper):
             
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            # Find all links that point to paper PDFs
-            paper_links = soup.find_all('a', href=True)
+            # Find the table and process rows in order (this ensures correct ordering)
+            table = soup.find('table')
+            if not table:
+                print("AOS: No table found on page")
+                return papers
             
-            for i, link in enumerate(paper_links):
-                href = link.get('href', '')
-                if 'e-publications.org' in href and ('confirm' in href or 'confirmation' in href):
-                    title = link.get_text(strip=True)
+            # Process table rows in order
+            # Note: AOS has an unusual structure where the first paper is in the header row
+            all_rows = table.find_all('tr')
+            
+            for i, row in enumerate(all_rows):
+                # Handle both header cells (th) and data cells (td)
+                cells = row.find_all(['td', 'th'])
+                if len(cells) >= 2:
+                    # First cell contains title and possibly link
+                    title_cell = cells[0]
+                    title_link = title_cell.find('a', href=True)
+                    title = None
+                    url = None
                     
-                    # Find authors using the table structure
-                    authors = []
+                    if title_link:
+                        href = title_link.get('href', '')
+                        # Verify this is an AOS paper link
+                        if 'e-publications.org' in href and ('confirm' in href or 'confirmation' in href):
+                            title = title_link.get_text(strip=True)
+                            url = href
+                    else:
+                        # For header row or cells without links, get the text directly
+                        potential_title = title_cell.get_text(strip=True)
+                        # Only accept if it looks like a paper title (reasonable length)
+                        if len(potential_title) > 20 and not potential_title.lower().startswith('title'):
+                            title = potential_title
                     
-                    # The paper is in a table row with 2 cells: title and authors
-                    parent_td = link.parent
-                    if parent_td and parent_td.name == 'td':
-                        table_row = parent_td.find_parent('tr')
-                        if table_row:
-                            cells = table_row.find_all('td')
-                            if len(cells) >= 2:
-                                # Authors are in the second cell
-                                author_text = cells[1].get_text(strip=True)
-                                
-                                if author_text:
-                                    # Parse the author text
-                                    # Split by commas and 'and'
-                                    author_parts = re.split(r',|\sand\s', author_text)
-                                    authors = [name.strip() for name in author_parts 
-                                             if name.strip() and len(name.strip()) > 2]
-                    
-                    if title:  # Only add if we have a title
+                    if title:  # Only proceed if we have a title
+                        # Second cell contains authors
+                        author_text = cells[1].get_text(strip=True)
+                        authors = []
+                        
+                        if author_text:
+                            # Parse the author text
+                            # Split by commas and 'and'
+                            author_parts = re.split(r',|\sand\s', author_text)
+                            authors = [name.strip() for name in author_parts 
+                                     if name.strip() and len(name.strip()) > 2]
+                        
                         paper_data = {
                             'title': title,
-                            'url': href,
+                            'url': url,  # Use the url variable we set above
                             'authors': authors,
                             'journal': self.journal_name,
                             'scraped_date': datetime.utcnow(),
-                            'order_index': i  # To maintain order from the page
+                            'order_index': i  # Table row order
                         }
                         papers.append(paper_data)
             
-            # Reverse the order so the latest (bottom of page) appears first
-            papers.reverse()
+            print(f"AOS: Successfully scraped {len(papers)} papers from table rows")
+            # Papers are already in correct order from table rows
+            # No need to reverse - table shows newest papers first
                 
         except Exception as e:
             print(f"Error scraping AOS: {e}")
@@ -371,24 +388,30 @@ class JASAScraper(BaseScraper):
             article_containers = soup.select('.tocArticleEntry')
             print(f"JASA: Found {len(article_containers)} article containers")
             
-            # Get base timestamp for proper ordering
-            base_time = datetime.utcnow()
-            
             if article_containers:
                 for i, container in enumerate(article_containers):
                     paper_data = self._extract_paper_from_container(container, page_num)
                     if paper_data:
-                        # Set proper ordering: papers at top of page are newer
-                        # Page 0 = newest page, index 0 = top of page (newest)
-                        order_offset = page_num * 1000 + i
-                        paper_data['scraped_date'] = base_time - timedelta(seconds=order_offset)
-                        paper_data['page_order'] = order_offset
+                        # If we have a real publication date, use it for ordering
+                        # Otherwise, use page position as fallback with current time
+                        if paper_data.get('publication_date'):
+                            # Use real publication date, but adjust slightly by position to maintain exact website order
+                            # for papers published on the same date
+                            base_pub_date = paper_data['publication_date']
+                            order_offset = page_num * 1000 + i
+                            paper_data['scraped_date'] = base_pub_date + timedelta(seconds=86400 - order_offset)
+                        else:
+                            # Fallback for papers without publication dates
+                            order_offset = page_num * 1000 + i
+                            paper_data['scraped_date'] = datetime.utcnow() - timedelta(seconds=order_offset)
+                        
                         papers.append(paper_data)
             else:
-                # Fallback to title-based approach
+                # Use the correct selector for JASA pagination pages
+                # JASA pagination pages use .art_title containers, not .hlFld-Title
                 article_selectors = [
-                    '.hlFld-Title',  # Primary selector that worked
-                    '.art_title',   # Alternative title selector
+                    '.art_title',   # Correct selector for JASA pagination pages
+                    '.hlFld-Title',  # Fallback for other page types
                 ]
                 
                 articles = []
@@ -396,6 +419,7 @@ class JASAScraper(BaseScraper):
                     found = soup.select(selector)
                     if found:
                         articles = found
+                        print(f"JASA: Found {len(articles)} articles using selector '{selector}'")
                         break
                 
                 for article in articles:
@@ -439,6 +463,32 @@ class JASAScraper(BaseScraper):
                             authors.append(author_name)
                     break  # Use first selector that works
             
+            # Extract publication date from .date elements (JASA format)
+            publication_date = None
+            date_elem = container.select_one('.date')
+            if date_elem:
+                date_text = date_elem.get_text(strip=True)
+                if 'Published online:' in date_text:
+                    # Extract date after "Published online:"
+                    date_part = date_text.replace('Published online:', '').strip()
+                    try:
+                        publication_date = datetime.strptime(date_part, '%d %b %Y')
+                    except ValueError:
+                        print(f"Could not parse JASA published date: {date_part}")
+                elif 'Accepted author version posted online:' in date_text:
+                    # Extract date after "Accepted author version posted online:"
+                    date_part = date_text.replace('Accepted author version posted online:', '').strip()
+                    try:
+                        publication_date = datetime.strptime(date_part, '%d %b %Y')
+                    except ValueError:
+                        print(f"Could not parse JASA accepted date: {date_part}")
+                else:
+                    # Try parsing the full text as a direct date
+                    try:
+                        publication_date = datetime.strptime(date_text, '%d %b %Y')
+                    except ValueError:
+                        print(f"Could not parse JASA date: {date_text}")
+            
             # Extract DOI if available
             doi = None
             if url and 'doi' in url:
@@ -451,6 +501,7 @@ class JASAScraper(BaseScraper):
                 'url': url,
                 'authors': authors,
                 'doi': doi,
+                'publication_date': publication_date,
                 'journal': self.journal_name,
                 'scraped_date': datetime.utcnow(),
                 'page_number': page_num,
@@ -464,11 +515,31 @@ class JASAScraper(BaseScraper):
     def _extract_paper_data(self, article_element, page_num: int) -> Optional[Dict]:
         """Extract paper data from an article element"""
         try:
-            # For JASA, try specific selectors first, then general ones
+            # For JASA, handle different element types
             title = None
+            url = None
+            
+            # Handle .art_title elements (JASA pagination pages)
+            if 'art_title' in str(article_element.get('class', [])):
+                # For art_title, the title is the text content, and there's a link inside
+                title_link = article_element.find('a')
+                if title_link:
+                    # Get title from the span.hlFld-Title inside the link
+                    title_span = title_link.find('span', class_='hlFld-Title')
+                    if title_span:
+                        title = title_span.get_text(strip=True)
+                    else:
+                        title = title_link.get_text(strip=True)
+                    
+                    # Get URL from the link
+                    href = title_link.get('href')
+                    if href:
+                        url = urljoin(self.base_url, href)
+                else:
+                    title = article_element.get_text(strip=True)
             
             # If this is a .hlFld-Title element, get the text directly
-            if 'hlFld-Title' in str(article_element.get('class', [])):
+            elif 'hlFld-Title' in str(article_element.get('class', [])):
                 title_link = article_element.find('a')
                 if title_link:
                     title = title_link.get_text(strip=True)
@@ -510,13 +581,71 @@ class JASAScraper(BaseScraper):
                         url = urljoin(self.base_url, href)
                         break
             
-            # Try to find authors
+            # Try to find authors and publication date
             authors = []
-            author_selectors = [
-                '.author', '.authors', '.authorName',
-                '.author-name', '.citation-author',
-                '[class*="author"]', '[class*="Author"]'
-            ]
+            publication_date = None
+            
+            # For JASA art_title elements, authors and dates are in the parent container
+            if 'art_title' in str(article_element.get('class', [])):
+                parent = article_element.parent
+                if parent:
+                    # Extract publication date from .date element
+                    date_elem = parent.select_one('.date')
+                    if date_elem:
+                        date_text = date_elem.get_text(strip=True)
+                        if 'Published online:' in date_text:
+                            # Extract date after "Published online:"
+                            date_part = date_text.replace('Published online:', '').strip()
+                            try:
+                                publication_date = datetime.strptime(date_part, '%d %b %Y')
+                            except ValueError:
+                                print(f"Could not parse JASA published date: {date_part}")
+                        elif 'Accepted author version posted online:' in date_text:
+                            # Extract date after "Accepted author version posted online:"
+                            date_part = date_text.replace('Accepted author version posted online:', '').strip()
+                            try:
+                                publication_date = datetime.strptime(date_part, '%d %b %Y')
+                            except ValueError:
+                                print(f"Could not parse JASA accepted date: {date_part}")
+                        else:
+                            # Try parsing the full text as a direct date
+                            try:
+                                publication_date = datetime.strptime(date_text, '%d %b %Y')
+                            except ValueError:
+                                print(f"Could not parse JASA date: {date_text}")
+                    
+                    # Look for author elements in the parent container
+                    jasa_author_selectors = [
+                        '.hlFld-ContribAuthor',  # Individual author elements
+                        '.entryAuthor',          # Alternative author elements
+                        '.tocAuthors'            # Combined authors element
+                    ]
+                    
+                    for selector in jasa_author_selectors:
+                        author_elements = parent.select(selector)
+                        if author_elements:
+                            if selector == '.tocAuthors':
+                                # Handle combined authors string
+                                author_text = author_elements[0].get_text(strip=True)
+                                # Split by comma and &
+                                import re
+                                authors = re.split(r',|&', author_text)
+                                authors = [author.strip() for author in authors if author.strip()]
+                            else:
+                                # Handle individual author elements
+                                for author_elem in author_elements:
+                                    author_name = author_elem.get_text(strip=True)
+                                    if author_name and author_name not in authors:
+                                        authors.append(author_name)
+                            break
+            
+            # Fallback author selectors for other element types
+            if not authors:
+                author_selectors = [
+                    '.author', '.authors', '.authorName',
+                    '.author-name', '.citation-author',
+                    '[class*="author"]', '[class*="Author"]'
+                ]
             
             for selector in author_selectors:
                 author_elements = article_element.select(selector)
@@ -563,6 +692,7 @@ class JASAScraper(BaseScraper):
                 'authors': authors,
                 'abstract': abstract,
                 'doi': doi,
+                'publication_date': publication_date,
                 'journal': self.journal_name,
                 'scraped_date': datetime.utcnow(),
                 'page_number': page_num
@@ -706,8 +836,8 @@ class JASAScraper(BaseScraper):
             # Get base timestamp for ordering
             base_time = datetime.utcnow()
             
-            # Try scraping pages until we get an empty page or error
-            for page_num in range(15):  # Try up to 15 pages
+            # Only scrape the most recent pages (0-2) to avoid old papers
+            for page_num in range(3):  # Only pages 0, 1, 2 (most recent papers)
                 try:
                     print(f"JASA: Scraping page {page_num}...")
                     page_papers = self.scrape_page(page_num)
@@ -792,8 +922,12 @@ class JRSSBScraper(BaseScraper):
             
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            # Find article containers
-            article_containers = soup.select('.al-article-items')
+            # Find article containers - try multiple selectors
+            article_containers = soup.select('.al-article-item')
+            if not article_containers:
+                article_containers = soup.select('.al-article-items')
+            if not article_containers:
+                article_containers = soup.select('div[class*="article"]')
             print(f"JRSSB: Found {len(article_containers)} article containers")
             
             base_time = datetime.utcnow()
@@ -1043,6 +1177,15 @@ class BiometrikaScraper(BaseScraper):
             return None
 
 def get_all_scrapers():
+    import os
+    
+    # Detect if running in Google Cloud App Engine
+    is_cloud = os.environ.get('GAE_ENV') or os.environ.get('GOOGLE_CLOUD_PROJECT')
+    
+    # Always use regular scrapers - let them handle cloud environment properly
+    # Cloud detection is causing issues with database sync
+    
+    # Use regular scrapers for local development
     return [
         AOSScraper(),
         JMLRScraper(),

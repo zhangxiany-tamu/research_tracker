@@ -12,8 +12,12 @@ from app.database import get_db, create_tables
 from app.models import Paper, Author, Journal, Topic
 from app.scrapers import get_all_scrapers
 from app.data_service import DataService
+from app.sync_endpoint import router as sync_router
 
 app = FastAPI(title="Research Tracker", description="Track recent papers from statistics journals")
+
+# Include sync router
+app.include_router(sync_router)
 
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -39,8 +43,11 @@ def startup():
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, db: Session = Depends(get_db)):
-    # Get recent papers
-    recent_papers = db.query(Paper).order_by(desc(Paper.scraped_date)).limit(20).all()
+    # Get recent papers - order by publication_date first, then scraped_date as fallback
+    recent_papers = db.query(Paper).order_by(
+        desc(Paper.publication_date), 
+        desc(Paper.scraped_date)
+    ).limit(20).all()
     
     # Get journal statistics
     journal_stats = db.query(
@@ -298,28 +305,38 @@ async def preprints(request: Request):
 @app.post("/scrape")
 async def trigger_scrape(db: Session = Depends(get_db)):
     """Manually trigger scraping of all journals"""
-    data_service = DataService(db)
-    scrapers = get_all_scrapers()
-    
-    results = {}
-    for scraper in scrapers:
-        try:
-            # For JASA, first update existing paper ordering to match website
-            if scraper.journal_name == "Journal of the American Statistical Association":
-                updated_count = scraper.update_paper_ordering(db)
-                results[f"{scraper.journal_name} (ordering)"] = f"Updated {updated_count} paper timestamps"
-            
-            # Then scrape for new papers
-            papers_data = scraper.scrape_papers()
-            count = 0
-            for paper_data in papers_data:
-                if data_service.save_paper(paper_data):
-                    count += 1
-            results[scraper.journal_name] = f"Added {count} new papers"
-        except Exception as e:
-            results[scraper.journal_name] = f"Error: {str(e)}"
-    
-    return {"message": "Scraping completed", "results": results}
+    try:
+        data_service = DataService(db)
+        scrapers = get_all_scrapers()
+        
+        results = {}
+        total_new_papers = 0
+        
+        for scraper in scrapers:
+            try:
+                print(f"Starting scraper for {scraper.journal_name}...")
+                
+                # Scrape for new papers
+                papers_data = scraper.scrape_papers()
+                count = 0
+                for paper_data in papers_data:
+                    if data_service.save_paper(paper_data):
+                        count += 1
+                
+                total_new_papers += count
+                results[scraper.journal_name] = f"Added {count} new papers (found {len(papers_data)} total)"
+                print(f"Completed scraper for {scraper.journal_name}: {count} new papers")
+                
+            except Exception as e:
+                print(f"Error in scraper {scraper.journal_name}: {str(e)}")
+                results[scraper.journal_name] = f"Error: {str(e)}"
+        
+        results["Summary"] = f"Total: {total_new_papers} new papers added across all journals"
+        return {"message": "Scraping completed", "results": results}
+        
+    except Exception as e:
+        print(f"General error in scraping: {str(e)}")
+        return {"message": "Scraping failed", "error": str(e)}
 
 @app.get("/api/papers")
 async def api_papers(

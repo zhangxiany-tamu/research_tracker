@@ -1,0 +1,229 @@
+name: Daily Paper Scraping
+
+on:
+  schedule:
+    # Run daily at 6 AM UTC (adjustable)
+    - cron: '0 6 * * *'
+  workflow_dispatch:  # Allow manual triggering
+    inputs:
+      force_full_scrape:
+        description: 'Force full database rebuild'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  scrape-and-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Create fresh local database
+      run: |
+        python -c "
+        from app.database import engine
+        from app.models import Base
+        Base.metadata.create_all(bind=engine)
+        print('✅ Fresh database created')
+        "
+        
+    - name: Run comprehensive scraping
+      run: |
+        python -c "
+        from app.database import SessionLocal
+        from app.scrapers import JASAScraper, JRSSBScraper, BiometrikaScraper, AOSScraper, JMLRScraper
+        from app.data_service import DataService
+        import json
+        
+        print('🔄 Starting comprehensive scraping...')
+        
+        db = SessionLocal()
+        data_service = DataService(db)
+        
+        scrapers = {
+            'JASA': JASAScraper(),
+            'JRSSB': JRSSBScraper(), 
+            'Biometrika': BiometrikaScraper(),
+            'AOS': AOSScraper(),
+            'JMLR': JMLRScraper()
+        }
+        
+        results = {}
+        all_papers_data = []
+        
+        for journal_name, scraper in scrapers.items():
+            try:
+                print(f'📰 Scraping {journal_name}...')
+                papers = scraper.scrape_papers()
+                print(f'Found {len(papers)} papers from {journal_name}')
+                
+                saved_count = 0
+                for paper_data in papers:
+                    success = data_service.save_paper(paper_data)
+                    if success:
+                        saved_count += 1
+                    
+                    # Prepare for cloud sync (convert dates to ISO format)
+                    paper_sync_data = {
+                        'title': paper_data.get('title'),
+                        'authors': paper_data.get('authors', []),
+                        'journal': paper_data.get('journal'),
+                        'url': paper_data.get('url'),
+                        'doi': paper_data.get('doi'),
+                        'abstract': paper_data.get('abstract'),
+                        'section': paper_data.get('section'),
+                        'publication_date': paper_data.get('publication_date').isoformat() if paper_data.get('publication_date') else None,
+                        'scraped_date': paper_data.get('scraped_date').isoformat() if paper_data.get('scraped_date') else None
+                    }
+                    all_papers_data.append(paper_sync_data)
+                
+                results[journal_name] = {
+                    'found': len(papers),
+                    'saved': saved_count
+                }
+                
+                print(f'✅ {journal_name}: {saved_count}/{len(papers)} papers saved')
+                
+            except Exception as e:
+                print(f'❌ Error scraping {journal_name}: {e}')
+                results[journal_name] = {'error': str(e)}
+        
+        # Save all papers data for cloud sync
+        with open('scraped_papers.json', 'w') as f:
+            json.dump(all_papers_data, f, indent=2)
+        
+        # Save results summary
+        with open('scrape_results.json', 'w') as f:
+            json.dump(results, f, indent=2)
+        
+        total_found = sum(r.get('found', 0) for r in results.values())
+        total_saved = sum(r.get('saved', 0) for r in results.values())
+        
+        print(f'📊 SCRAPING COMPLETE')
+        print(f'Total papers found: {total_found}')
+        print(f'Total papers saved: {total_saved}')
+        print(f'Papers prepared for cloud sync: {len(all_papers_data)}')
+        
+        db.close()
+        "
+        
+    - name: Upload scraped data as artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: scraped-papers
+        path: |
+          scraped_papers.json
+          scrape_results.json
+        retention-days: 7
+        
+    - name: Sync to Cloud Database
+      env:
+        CLOUD_URL: ${{ secrets.CLOUD_URL }}
+      run: |
+        python -c "
+        import requests
+        import json
+        import os
+        
+        cloud_url = os.getenv('CLOUD_URL', 'https://research-tracker-466018.uc.r.appspot.com')
+        
+        try:
+            # Load scraped papers
+            with open('scraped_papers.json', 'r') as f:
+                papers_data = json.load(f)
+            
+            print(f'🌐 Syncing {len(papers_data)} papers to cloud database...')
+            print(f'Cloud URL: {cloud_url}')
+            
+            # Sync papers to cloud
+            response = requests.post(
+                f'{cloud_url}/api/sync-papers',
+                json=papers_data,
+                headers={'Content-Type': 'application/json'},
+                timeout=300  # 5 minutes timeout
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                print(f'✅ Cloud sync successful!')
+                print(f'   Synced: {result.get(\"synced_papers\", 0)} new papers')
+                print(f'   Updated: {result.get(\"updated_papers\", 0)} existing papers')
+                print(f'   Total processed: {result.get(\"total_processed\", 0)} papers')
+                
+                # Get updated database stats
+                stats_response = requests.get(f'{cloud_url}/api/database-stats', timeout=30)
+                if stats_response.status_code == 200:
+                    stats = stats_response.json()
+                    print(f'📊 Updated cloud database stats:')
+                    print(f'   Total papers: {stats.get(\"total_papers\", 0)}')
+                    for journal, count in stats.get('journal_stats', {}).items():
+                        print(f'   {journal}: {count} papers')
+                
+            else:
+                print(f'❌ Cloud sync failed: {response.status_code}')
+                print(f'Response: {response.text[:500]}')
+                exit(1)
+                
+        except Exception as e:
+            print(f'❌ Cloud sync error: {e}')
+            exit(1)
+        "
+        
+    - name: Create summary comment
+      run: |
+        echo '## Daily Scraping Summary' >> $GITHUB_STEP_SUMMARY
+        echo '' >> $GITHUB_STEP_SUMMARY
+        
+        python -c "
+        import json
+        import os
+        
+        # Load results
+        with open('scrape_results.json', 'r') as f:
+            results = json.load(f)
+        
+        summary_lines = []
+        summary_lines.append('| Journal | Papers Found | Papers Saved | Status |')
+        summary_lines.append('|---------|--------------|--------------|---------|')
+        
+        total_found = 0
+        total_saved = 0
+        
+        for journal, result in results.items():
+            if 'error' in result:
+                summary_lines.append(f'| {journal} | - | - | ❌ Error |')
+            else:
+                found = result.get('found', 0)
+                saved = result.get('saved', 0)
+                status = '✅ Success' if found > 0 else '⚠️  No papers'
+                summary_lines.append(f'| {journal} | {found} | {saved} | {status} |')
+                total_found += found
+                total_saved += saved
+        
+        summary_lines.append(f'| **Total** | **{total_found}** | **{total_saved}** | |')
+        
+        # Write to GitHub summary
+        with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+            f.write('\n'.join(summary_lines))
+            f.write('\n\n')
+            f.write(f'🕐 Scraping completed at: {__import__(\"datetime\").datetime.utcnow().strftime(\"%Y-%m-%d %H:%M:%S UTC\")}\n')
+            f.write(f'🌐 Cloud database updated successfully\n')
+        "
+        
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo '❌ Daily scraping failed! Check the logs above.' >> $GITHUB_STEP_SUMMARY

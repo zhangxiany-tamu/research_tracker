@@ -21,10 +21,19 @@ wheels/
 *.egg
 MANIFEST
 
-# Virtual Environment
-venv/
+# Virtual environments
+.env
+.venv
 env/
+venv/
 ENV/
+env.bak/
+venv.bak/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
 
 # IDE
 .vscode/
@@ -44,39 +53,22 @@ Thumbs.db
 
 # Logs
 *.log
-server.log
-
-# Database (don't upload the local database to production)
-*.db
-*.sqlite
-*.sqlite3
+logs/
 
 # Temporary files
 *.tmp
 *.temp
+test_*.py
+debug_*.py
+add_missing_papers.py
+sync_database.py
+sync_latest_papers.py
+verify_ordering.py
+jasa_master_list.json
+jasa_master_summary.md
+main.py
+server.log
 
-# Google Cloud
+# App Engine
 .gcloudignore
-
-# Claude development
-.claude/
-
-# Environment variables
-.env
-.env.local
-.env.production
-.env.development
-
-# Coverage reports
-htmlcov/
-.coverage
-.coverage.*
-coverage.xml
-
-# pytest
-.pytest_cache/
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+EOF < /dev/null
