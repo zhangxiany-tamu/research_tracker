@@ -1,0 +1,47 @@
+# This file specifies files that are intentionally not uploaded to Google Cloud.
+
+.gcloudignore
+.git
+.gitignore
+README.md
+CLAUDE.md
+DEPLOYMENT_GUIDE.md
+GITHUB_ACTIONS_SETUP.md
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# Database files (we want the current database to deploy)
+# *.db
+# *.sqlite
+# *.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# GitHub Actions (not needed on cloud)
+.github/
+scripts/
+
+# Development files
+test_*.py
+debug_*.py
+EOF < /dev/null
