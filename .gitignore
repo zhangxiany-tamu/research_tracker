@@ -60,14 +60,11 @@ logs/
 *.temp
 test_*.py
 debug_*.py
-add_missing_papers.py
-sync_database.py
-sync_latest_papers.py
-verify_ordering.py
-jasa_master_list.json
-jasa_master_summary.md
-main.py
-server.log
+
+# Documentation files (keep only README.md)
+CLAUDE.md
+DEPLOYMENT_*.md
+GITHUB_ACTIONS_*.md
 
 # App Engine
 .gcloudignore
