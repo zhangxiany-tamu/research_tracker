@@ -88,6 +88,15 @@ def scrape_all_papers():
 def sync_to_cloud(papers_data, cloud_url='https://research-tracker-466018.uc.r.appspot.com'):
     """Sync papers to cloud database"""
     print(f"\n🌐 Syncing {len(papers_data)} papers to cloud...")
+    
+    # Ensure URL has proper scheme and is not empty
+    cloud_url = cloud_url.strip()
+    if not cloud_url:
+        cloud_url = 'https://research-tracker-466018.uc.r.appspot.com'
+    
+    if not cloud_url.startswith(('http://', 'https://')):
+        cloud_url = 'https://' + cloud_url
+    
     print(f"Cloud URL: {cloud_url}")
     
     try:
@@ -166,7 +175,9 @@ def main():
     
     # Step 4: Sync to cloud
     if papers_data:
-        cloud_url = os.getenv('CLOUD_URL', 'https://research-tracker-466018.uc.r.appspot.com')
+        cloud_url = os.getenv('CLOUD_URL', '').strip()
+        if not cloud_url:
+            cloud_url = 'https://research-tracker-466018.uc.r.appspot.com'
         sync_success = sync_to_cloud(papers_data, cloud_url)
         
         if sync_success:

@@ -13,6 +13,7 @@ from app.models import Paper, Author, Journal, Topic
 from app.scrapers import get_all_scrapers
 from app.data_service import DataService
 from app.sync_endpoint import router as sync_router
+from app.cloud_init import init_cloud_database
 
 app = FastAPI(title="Research Tracker", description="Track recent papers from statistics journals")
 
@@ -40,6 +41,11 @@ templates.env.filters['format_authors'] = format_authors_filter
 @app.on_event("startup")
 def startup():
     create_tables()
+    # Initialize cloud database if running on Google App Engine
+    import os
+    if os.getenv('GAE_ENV', '').startswith('standard'):
+        print("🌐 Running on Google App Engine - initializing cloud database...")
+        init_cloud_database()
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, db: Session = Depends(get_db)):

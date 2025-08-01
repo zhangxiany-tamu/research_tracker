@@ -18,10 +18,10 @@ env/
 venv/
 .venv/
 
-# Database files (we want the current database to deploy)
-# *.db
-# *.sqlite
-# *.sqlite3
+# Database files (cloud will create its own with write permissions)
+*.db
+*.sqlite
+*.sqlite3
 
 # IDE
 .vscode/
