@@ -179,7 +179,7 @@ jobs:
             print(f'📦 Prepared {len(papers_data)} papers for cloud sync')
             
             # Sync to cloud
-            cloud_url = os.getenv('CLOUD_URL', 'https://research-tracker-466018.uc.r.appspot.com')
+            cloud_url = 'https://research-tracker-466018.uc.r.appspot.com'
             
             print(f'🌐 Syncing to cloud database: {cloud_url}')
             
