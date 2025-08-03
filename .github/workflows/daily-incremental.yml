@@ -33,12 +33,7 @@ jobs:
           echo "✅ Database ready with existing papers"
         else
           echo "⚠️ No committed backup found, creating fresh database"
-          python -c "
-from app.database import engine
-from app.models import Base
-Base.metadata.create_all(bind=engine)
-print('✅ Fresh database created')
-"
+          python -c "from app.database import engine; from app.models import Base; Base.metadata.create_all(bind=engine); print('✅ Fresh database created')"
         fi
         
     - name: Scrape only NEW papers
