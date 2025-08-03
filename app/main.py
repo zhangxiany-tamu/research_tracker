@@ -8,7 +8,7 @@ from typing import List, Optional
 import asyncio
 from datetime import datetime, timedelta
 
-from app.database import get_db, create_tables
+from app.database import get_db, create_tables, SessionLocal
 from app.models import Paper, Author, Journal, Topic
 from app.scrapers import get_all_scrapers
 from app.data_service import DataService
@@ -46,6 +46,46 @@ def startup():
     if os.getenv('GAE_ENV', '').startswith('standard'):
         print("🌐 Running on Google App Engine - initializing cloud database...")
         init_cloud_database()
+        
+        # Check if database is empty and auto-trigger restoration
+        db = SessionLocal()
+        try:
+            paper_count = db.query(Paper).count()
+            if paper_count == 0:
+                print("⚠️ Database is empty after restart - triggering auto-restoration...")
+                
+                # Try to trigger database restore from backup
+                try:
+                    import subprocess
+                    import os
+                    
+                    # Only trigger if we have GitHub token (in production)
+                    github_token = os.getenv('GITHUB_TOKEN')
+                    if github_token:
+                        print("🔄 Triggering database restore from backup...")
+                        result = subprocess.run([
+                            'gh', 'workflow', 'run', 'Restore Database from Backup',
+                            '--repo', 'zhangxiany-tamu/research_tracker'
+                        ], capture_output=True, text=True, timeout=30)
+                        
+                        if result.returncode == 0:
+                            print("✅ Auto-restoration from backup triggered successfully")
+                            print("📦 Database will be restored from latest backup in ~2 minutes")
+                        else:
+                            print(f"❌ Auto-restoration failed: {result.stderr}")
+                            print("💡 Fallback: Please manually trigger 'Restore Database from Backup' workflow")
+                    else:
+                        print("💡 No GitHub token available - manual restoration needed")
+                        print("💡 Please trigger 'Restore Database from Backup' workflow manually")
+                        
+                except Exception as trigger_error:
+                    print(f"❌ Could not trigger auto-restoration: {trigger_error}")
+                    print("💡 Please manually trigger the 'Restore Database from Backup' workflow")
+                    
+        except Exception as e:
+            print(f"Could not check database status: {e}")
+        finally:
+            db.close()
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, db: Session = Depends(get_db)):

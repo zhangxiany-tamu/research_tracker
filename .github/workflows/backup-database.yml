@@ -1,0 +1,149 @@
+name: Backup Database
+
+on:
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      description:
+        description: 'Backup description'
+        required: false
+        default: 'Manual database backup'
+        type: string
+  schedule:
+    # Backup weekly on Sundays at 3 AM UTC
+    - cron: '0 3 * * 0'
+
+jobs:
+  backup-database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Create comprehensive local database
+      run: |
+        python -c "
+        from app.database import SessionLocal, engine
+        from app.models import Base, Paper, Journal
+        from app.scrapers import JASAScraper, JRSSBScraper, BiometrikaScraper, AOSScraper, JMLRScraper
+        from app.data_service import DataService
+        import os
+        from datetime import datetime
+        
+        print('📦 Creating comprehensive database backup...')
+        
+        # Create fresh database
+        Base.metadata.create_all(bind=engine)
+        
+        db = SessionLocal()
+        data_service = DataService(db)
+        
+        scrapers = {
+            'JASA': JASAScraper(),
+            'JRSSB': JRSSBScraper(), 
+            'Biometrika': BiometrikaScraper(),
+            'AOS': AOSScraper(),
+            'JMLR': JMLRScraper()
+        }
+        
+        total_papers = 0
+        results = {}
+        
+        for journal_name, scraper in scrapers.items():
+            try:
+                print(f'📰 Scraping {journal_name}...')
+                papers = scraper.scrape_papers()
+                
+                saved_count = 0
+                for paper_data in papers:
+                    success = data_service.save_paper(paper_data)
+                    if success:
+                        saved_count += 1
+                
+                total_papers += saved_count
+                results[journal_name] = {'found': len(papers), 'saved': saved_count}
+                print(f'✅ {journal_name}: {saved_count}/{len(papers)} papers')
+                
+            except Exception as e:
+                print(f'❌ Error scraping {journal_name}: {e}')
+                results[journal_name] = {'error': str(e)}
+        
+        print(f'📊 BACKUP COMPLETE: {total_papers} total papers saved')
+        
+        # Create backup metadata
+        backup_info = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'total_papers': total_papers,
+            'results': results,
+            'description': '${{ github.event.inputs.description || \"Scheduled backup\" }}'
+        }
+        
+        import json
+        with open('backup_info.json', 'w') as f:
+            json.dump(backup_info, f, indent=2)
+        
+        db.close()
+        print('✅ Backup database ready for upload')
+        "
+        
+    - name: Upload database backup
+      uses: actions/upload-artifact@v4
+      with:
+        name: database-backup-${{ github.run_id }}
+        path: |
+          research_tracker.db
+          backup_info.json
+        retention-days: 90  # Keep backups for 3 months
+        
+    - name: Upload latest backup (overwrite)
+      uses: actions/upload-artifact@v4
+      with:
+        name: database-backup-latest
+        path: |
+          research_tracker.db
+          backup_info.json
+        retention-days: 90
+        
+    - name: Create backup summary
+      run: |
+        echo '## Database Backup Summary' >> $GITHUB_STEP_SUMMARY
+        echo '' >> $GITHUB_STEP_SUMMARY
+        
+        python -c "
+        import json
+        import os
+        
+        with open('backup_info.json', 'r') as f:
+            backup_info = json.load(f)
+        
+        print(f'**Backup Timestamp:** {backup_info[\"timestamp\"]}')
+        print(f'**Total Papers:** {backup_info[\"total_papers\"]}')
+        print(f'**Description:** {backup_info[\"description\"]}')
+        print()
+        print('### Papers by Journal')
+        print('| Journal | Found | Saved | Status |')
+        print('|---------|-------|-------|--------|')
+        
+        for journal, result in backup_info['results'].items():
+            if 'error' in result:
+                print(f'| {journal} | - | - | ❌ Error |')
+            else:
+                found = result.get('found', 0)
+                saved = result.get('saved', 0)
+                status = '✅ Success' if saved > 0 else '⚠️ No papers'
+                print(f'| {journal} | {found} | {saved} | {status} |')
+        
+        print()
+        print(f'🗄️ **Artifact Name:** database-backup-{os.environ[\"GITHUB_RUN_ID\"]}')
+        " >> $GITHUB_STEP_SUMMARY

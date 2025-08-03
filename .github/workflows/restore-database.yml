@@ -1,0 +1,250 @@
+name: Restore Database from Backup
+
+on:
+  workflow_dispatch:  # Manual trigger only
+    inputs:
+      backup_run_id:
+        description: 'Backup run ID (leave empty for latest)'
+        required: false
+        type: string
+      force_restore:
+        description: 'Force restore even if database is not empty'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  restore-database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Determine backup to restore
+      id: backup
+      run: |
+        if [ -n "${{ github.event.inputs.backup_run_id }}" ]; then
+          BACKUP_NAME="database-backup-${{ github.event.inputs.backup_run_id }}"
+          echo "backup_name=$BACKUP_NAME" >> $GITHUB_OUTPUT
+          echo "Restoring from specific backup: $BACKUP_NAME"
+        else
+          BACKUP_NAME="database-backup-latest"
+          echo "backup_name=$BACKUP_NAME" >> $GITHUB_OUTPUT
+          echo "Restoring from latest backup: $BACKUP_NAME"
+        fi
+        
+    - name: Download database backup
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ steps.backup.outputs.backup_name }}
+        path: ./backup/
+        
+    - name: Check cloud database status
+      id: check_db
+      run: |
+        python -c "
+        import requests
+        import json
+        
+        try:
+            response = requests.get('${{ secrets.CLOUD_URL || \"https://research-tracker-466018.uc.r.appspot.com\" }}/api/database-stats', timeout=30)
+            
+            if response.status_code == 200:
+                stats = response.json()
+                total_papers = stats.get('total_papers', 0)
+                print(f'Current cloud database has {total_papers} papers')
+                
+                force_restore = '${{ github.event.inputs.force_restore }}' == 'true'
+                
+                if total_papers > 0 and not force_restore:
+                    print('❌ Cloud database is not empty and force_restore is false')
+                    print('Set force_restore=true to override this safety check')
+                    exit(1)
+                else:
+                    print('✅ Proceeding with restore')
+                    
+            else:
+                print(f'❌ Could not check cloud database status: {response.status_code}')
+                print('Assuming database is empty and proceeding...')
+                
+        except Exception as e:
+            print(f'❌ Error checking cloud database: {e}')
+            print('Assuming database is empty and proceeding...')
+        "
+        
+    - name: Load backup metadata
+      run: |
+        echo "## Restore Database Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        python -c "
+        import json
+        
+        with open('./backup/backup_info.json', 'r') as f:
+            backup_info = json.load(f)
+        
+        print(f'**Backup Source:** ${{ steps.backup.outputs.backup_name }}')
+        print(f'**Backup Timestamp:** {backup_info[\"timestamp\"]}')
+        print(f'**Total Papers in Backup:** {backup_info[\"total_papers\"]}')
+        print(f'**Backup Description:** {backup_info[\"description\"]}')
+        print()
+        
+        # Show backup contents
+        print('### Backup Contents')
+        print('| Journal | Papers | Status |')
+        print('|---------|---------|--------|')
+        
+        for journal, result in backup_info['results'].items():
+            if 'error' in result:
+                print(f'| {journal} | 0 | ❌ Error in backup |')
+            else:
+                saved = result.get('saved', 0)
+                status = '✅ Available' if saved > 0 else '⚠️ Empty'
+                print(f'| {journal} | {saved} | {status} |')
+        " >> $GITHUB_STEP_SUMMARY
+        
+    - name: Convert and upload backup to cloud
+      run: |
+        python -c "
+        import sqlite3
+        import json
+        import requests
+        from datetime import datetime
+        
+        print('🔄 Converting backup database for cloud sync...')
+        
+        # Connect to backup database
+        conn = sqlite3.connect('./backup/research_tracker.db')
+        cursor = conn.cursor()
+        
+        # Extract all papers with their relationships
+        papers_data = []
+        
+        try:
+            # Get papers with journal names
+            cursor.execute('''
+                SELECT p.title, p.abstract, p.doi, p.url, p.publication_date, 
+                       p.scraped_date, p.section, j.name as journal_name
+                FROM papers p
+                JOIN journals j ON p.journal_id = j.id
+            ''')
+            
+            papers = cursor.fetchall()
+            
+            for paper in papers:
+                title, abstract, doi, url, pub_date, scraped_date, section, journal = paper
+                
+                # Get authors for this paper
+                cursor.execute('''
+                    SELECT a.name
+                    FROM authors a
+                    JOIN paper_authors pa ON a.id = pa.author_id
+                    JOIN papers p ON p.id = pa.paper_id
+                    WHERE p.title = ?
+                    ORDER BY pa.author_order
+                ''', (title,))
+                
+                authors = [row[0] for row in cursor.fetchall()]
+                
+                paper_data = {
+                    'title': title,
+                    'abstract': abstract,
+                    'doi': doi,
+                    'url': url,
+                    'publication_date': pub_date,
+                    'scraped_date': scraped_date,
+                    'section': section,
+                    'journal': journal,
+                    'authors': authors
+                }
+                papers_data.append(paper_data)
+            
+            print(f'📦 Prepared {len(papers_data)} papers for cloud sync')
+            
+            # Sync to cloud
+            cloud_url = '${{ secrets.CLOUD_URL || \"https://research-tracker-466018.uc.r.appspot.com\" }}'
+            
+            print(f'🌐 Syncing to cloud database: {cloud_url}')
+            
+            response = requests.post(
+                f'{cloud_url}/api/sync-papers',
+                json=papers_data,
+                headers={'Content-Type': 'application/json'},
+                timeout=300
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                print(f'✅ Database restore successful!')
+                print(f'   Synced: {result.get(\"synced_papers\", 0)} papers')
+                print(f'   Updated: {result.get(\"updated_papers\", 0)} papers')
+                print(f'   Total processed: {result.get(\"total_processed\", 0)} papers')
+                
+                # Get final database stats
+                stats_response = requests.get(f'{cloud_url}/api/database-stats', timeout=30)
+                if stats_response.status_code == 200:
+                    stats = stats_response.json()
+                    print(f'📊 Final cloud database stats:')
+                    print(f'   Total papers: {stats.get(\"total_papers\", 0)}')
+                    for journal, count in stats.get('journal_stats', {}).items():
+                        print(f'   {journal}: {count} papers')
+                        
+            else:
+                print(f'❌ Database restore failed: {response.status_code}')
+                print(f'Response: {response.text[:500]}')
+                exit(1)
+                
+        except Exception as e:
+            print(f'❌ Error during restore: {e}')
+            exit(1)
+        finally:
+            conn.close()
+        "
+        
+    - name: Verify restore success
+      run: |
+        python -c "
+        import requests
+        
+        cloud_url = '${{ secrets.CLOUD_URL || \"https://research-tracker-466018.uc.r.appspot.com\" }}'
+        
+        try:
+            response = requests.get(f'{cloud_url}/api/database-stats', timeout=30)
+            if response.status_code == 200:
+                stats = response.json()
+                total_papers = stats.get('total_papers', 0)
+                
+                if total_papers > 0:
+                    print(f'✅ Restore verification successful: {total_papers} papers in cloud database')
+                else:
+                    print('❌ Restore verification failed: No papers found in cloud database')
+                    exit(1)
+            else:
+                print(f'❌ Could not verify restore: {response.status_code}')
+                exit(1)
+                
+        except Exception as e:
+            print(f'❌ Error verifying restore: {e}')
+            exit(1)
+        "
+        
+    - name: Update summary with results
+      if: always()
+      run: |
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Restore Results" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Database restored from backup" >> $GITHUB_STEP_SUMMARY
+        echo "- 🌐 Cloud database updated successfully" >> $GITHUB_STEP_SUMMARY
+        echo "- ⏰ Completed at: $(date -u)" >> $GITHUB_STEP_SUMMARY
