@@ -87,6 +87,21 @@ def startup():
         finally:
             db.close()
 
+@app.get("/debug-papers")
+async def debug_papers(db: Session = Depends(get_db)):
+    """Debug endpoint to check journal associations"""
+    papers = db.query(Paper).options(joinedload(Paper.journal)).limit(3).all()
+    result = []
+    for paper in papers:
+        result.append({
+            'title': paper.title[:50],
+            'journal_id': paper.journal_id,
+            'journal_name': paper.journal.name if paper.journal else None,
+            'journal_abbreviation': paper.journal.abbreviation if paper.journal else None,
+            'has_journal_object': paper.journal is not None
+        })
+    return result
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, db: Session = Depends(get_db)):
     # Get recent papers - order by publication_date first, then scraped_date as fallback
