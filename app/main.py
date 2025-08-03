@@ -45,7 +45,34 @@ def startup():
     import os
     if os.getenv('GAE_ENV', '').startswith('standard'):
         print("🌐 Running on Google App Engine - initializing cloud database...")
-        init_cloud_database()
+        success = init_cloud_database()
+        
+        # CRITICAL: Always ensure journals have abbreviations on startup
+        if success:
+            print("🔧 Ensuring journal abbreviations are set...")
+            db = SessionLocal()
+            try:
+                journal_updates = [
+                    {"name": "Annals of Statistics", "abbreviation": "AOS"},
+                    {"name": "Journal of Machine Learning Research", "abbreviation": "JMLR"},
+                    {"name": "Journal of the American Statistical Association", "abbreviation": "JASA"},
+                    {"name": "Journal of the Royal Statistical Society Series B", "abbreviation": "JRSSB"},
+                    {"name": "Biometrika", "abbreviation": "Biometrika"}
+                ]
+                
+                for update_data in journal_updates:
+                    journal = db.query(Journal).filter(Journal.name == update_data["name"]).first()
+                    if journal and not journal.abbreviation:
+                        journal.abbreviation = update_data["abbreviation"]
+                        print(f"✅ Set {journal.name} abbreviation to {update_data['abbreviation']}")
+                
+                db.commit()
+                print("✅ Journal abbreviations ensured")
+            except Exception as e:
+                print(f"❌ Error setting journal abbreviations: {e}")
+                db.rollback()
+            finally:
+                db.close()
         
         # Check if database is empty and auto-trigger restoration
         db = SessionLocal()
