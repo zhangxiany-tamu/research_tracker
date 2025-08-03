@@ -53,13 +53,18 @@ jobs:
         
     - name: Check cloud database status
       id: check_db
+      env:
+        CLOUD_URL: ${{ secrets.CLOUD_URL || 'https://research-tracker-466018.uc.r.appspot.com' }}
       run: |
         python -c "
         import requests
         import json
+        import os
+        
+        cloud_url = os.getenv('CLOUD_URL', 'https://research-tracker-466018.uc.r.appspot.com')
         
         try:
-            response = requests.get('${{ secrets.CLOUD_URL || \"https://research-tracker-466018.uc.r.appspot.com\" }}/api/database-stats', timeout=30)
+            response = requests.get(f'{cloud_url}/api/database-stats', timeout=30)
             
             if response.status_code == 200:
                 stats = response.json()
@@ -116,6 +121,8 @@ jobs:
         " >> $GITHUB_STEP_SUMMARY
         
     - name: Convert and upload backup to cloud
+      env:
+        CLOUD_URL: ${{ secrets.CLOUD_URL || 'https://research-tracker-466018.uc.r.appspot.com' }}
       run: |
         python -c "
         import sqlite3
@@ -174,7 +181,7 @@ jobs:
             print(f'📦 Prepared {len(papers_data)} papers for cloud sync')
             
             # Sync to cloud
-            cloud_url = '${{ secrets.CLOUD_URL || \"https://research-tracker-466018.uc.r.appspot.com\" }}'
+            cloud_url = os.getenv('CLOUD_URL', 'https://research-tracker-466018.uc.r.appspot.com')
             
             print(f'🌐 Syncing to cloud database: {cloud_url}')
             
@@ -214,11 +221,14 @@ jobs:
         "
         
     - name: Verify restore success
+      env:
+        CLOUD_URL: ${{ secrets.CLOUD_URL || 'https://research-tracker-466018.uc.r.appspot.com' }}
       run: |
         python -c "
         import requests
+        import os
         
-        cloud_url = '${{ secrets.CLOUD_URL || \"https://research-tracker-466018.uc.r.appspot.com\" }}'
+        cloud_url = os.getenv('CLOUD_URL', 'https://research-tracker-466018.uc.r.appspot.com')
         
         try:
             response = requests.get(f'{cloud_url}/api/database-stats', timeout=30)
