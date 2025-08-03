@@ -27,6 +27,7 @@ class Journal(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, index=True)
+    short_name = Column(String(20), unique=True, index=True)
     abbreviation = Column(String(20), unique=True)
     url = Column(String(500))
     papers_url = Column(String(500))
