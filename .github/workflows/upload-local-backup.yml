@@ -1,0 +1,51 @@
+name: Upload Local Database Backup
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  upload-local-backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Create backup from local database
+      run: |
+        python scripts/upload_local_backup.py
+        
+    - name: Upload local database backup
+      uses: actions/upload-artifact@v4
+      with:
+        name: database-backup-latest
+        path: |
+          backup_research_tracker.db
+          backup_info.json
+        retention-days: 90
+        
+    - name: Upload timestamped backup
+      uses: actions/upload-artifact@v4
+      with:
+        name: database-backup-local-${{ github.run_id }}
+        path: |
+          backup_research_tracker.db
+          backup_info.json
+        retention-days: 90
+        
+    - name: Create backup summary
+      run: |
+        echo '## Local Database Backup Summary' >> $GITHUB_STEP_SUMMARY
+        echo '' >> $GITHUB_STEP_SUMMARY
+        python scripts/backup_summary.py >> $GITHUB_STEP_SUMMARY

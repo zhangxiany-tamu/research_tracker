@@ -1,0 +1,13 @@
+{
+  "timestamp": "2025-08-03T00:41:49.582608",
+  "total_papers": 412,
+  "journal_stats": {
+    "Annals of Statistics": 69,
+    "Journal of the American Statistical Association": 152,
+    "Journal of the Royal Statistical Society Series B": 46,
+    "Biometrika": 30,
+    "Journal of Machine Learning Research": 115
+  },
+  "description": "Local database backup with all existing papers",
+  "source": "local_existing_database"
+}
