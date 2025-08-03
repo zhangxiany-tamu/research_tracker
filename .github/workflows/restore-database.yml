@@ -52,6 +52,7 @@ jobs:
         path: ./backup/
         github_token: ${{ secrets.GITHUB_TOKEN }}
         repo: ${{ github.repository }}
+        workflow: Upload Local Database Backup
         workflow_conclusion: success
         
     - name: Check cloud database status

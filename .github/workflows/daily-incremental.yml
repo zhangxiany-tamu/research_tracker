@@ -32,6 +32,7 @@ jobs:
         path: ./backup/
         github_token: ${{ secrets.GITHUB_TOKEN }}
         repo: ${{ github.repository }}
+        workflow: Upload Local Database Backup
         workflow_conclusion: success
       continue-on-error: true  # In case no backup exists yet
         
