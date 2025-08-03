@@ -122,11 +122,11 @@ async def init_journals(db: Session = Depends(get_db)):
     """Initialize missing journals in the database"""
     try:
         journals_data = [
-            {"name": "Annals of Statistics", "abbreviation": "AOS", "url": "https://imstat.org/journals-and-publications/annals-of-statistics/"},
-            {"name": "Journal of Machine Learning Research", "abbreviation": "JMLR", "url": "https://www.jmlr.org/"},
-            {"name": "Journal of the American Statistical Association", "abbreviation": "JASA", "url": "https://www.tandfonline.com/toc/uasa20/current"},
-            {"name": "Journal of the Royal Statistical Society Series B", "abbreviation": "JRSS-B", "url": "https://academic.oup.com/jrsssb"},
-            {"name": "Biometrika", "abbreviation": "Biometrika", "url": "https://academic.oup.com/biomet"}
+            {"name": "Annals of Statistics", "short_name": "AOS", "abbreviation": "AOS", "url": "https://imstat.org/journals-and-publications/annals-of-statistics/"},
+            {"name": "Journal of Machine Learning Research", "short_name": "JMLR", "abbreviation": "JMLR", "url": "https://www.jmlr.org/"},
+            {"name": "Journal of the American Statistical Association", "short_name": "JASA", "abbreviation": "JASA", "url": "https://www.tandfonline.com/toc/uasa20/current"},
+            {"name": "Journal of the Royal Statistical Society Series B", "short_name": "JRSS-B", "abbreviation": "JRSS-B", "url": "https://academic.oup.com/jrsssb"},
+            {"name": "Biometrika", "short_name": "Biometrika", "abbreviation": "Biometrika", "url": "https://academic.oup.com/biomet"}
         ]
         
         created_count = 0
