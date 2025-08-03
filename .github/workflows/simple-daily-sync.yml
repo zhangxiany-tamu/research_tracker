@@ -1,0 +1,154 @@
+name: Simple Daily Paper Sync
+
+on:
+  schedule:
+    # Run daily at 6 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  simple-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Use committed backup as base
+      run: |
+        if [ -f "local_backup_research_tracker.db" ]; then
+          echo "📦 Using committed backup database as base"
+          cp local_backup_research_tracker.db research_tracker.db
+          echo "✅ Base database ready"
+        else
+          echo "⚠️ No backup found, creating fresh database"
+          python -c "from app.database import engine; from app.models import Base; Base.metadata.create_all(bind=engine); print('✅ Fresh database created')"
+        fi
+        
+    - name: Scrape and sync new papers only
+      run: |
+        python -c "
+        from app.database import SessionLocal
+        from app.models import Paper
+        from app.scrapers import JASAScraper, JRSSBScraper, BiometrikaScraper, AOSScraper, JMLRScraper
+        from app.data_service import DataService
+        import requests
+        import json
+        
+        print('🔄 Starting smart sync - adding only NEW papers...')
+        
+        db = SessionLocal()
+        data_service = DataService(db)
+        
+        # Get existing paper titles to avoid duplicates
+        existing_titles = set()
+        try:
+            existing_papers = db.query(Paper.title).all()
+            existing_titles = {title[0] for title in existing_papers}
+            print(f'📊 Found {len(existing_titles)} existing papers in base database')
+        except Exception as e:
+            print(f'⚠️ Could not read existing papers: {e}')
+        
+        scrapers = {
+            'JASA': JASAScraper(),
+            'JRSSB': JRSSBScraper(), 
+            'Biometrika': BiometrikaScraper(),
+            'AOS': AOSScraper(),
+            'JMLR': JMLRScraper()
+        }
+        
+        all_new_papers = []
+        total_new = 0
+        
+        for journal_name, scraper in scrapers.items():
+            try:
+                print(f'📰 Checking {journal_name} for new papers...')
+                papers = scraper.scrape_papers()
+                
+                new_papers_count = 0
+                for paper_data in papers:
+                    title = paper_data.get('title', '')
+                    if title and title not in existing_titles:
+                        # Save new paper to local database
+                        success = data_service.save_paper(paper_data)
+                        if success:
+                            new_papers_count += 1
+                            
+                            # Prepare for cloud sync
+                            paper_sync_data = {
+                                'title': paper_data.get('title'),
+                                'authors': paper_data.get('authors', []),
+                                'journal': paper_data.get('journal'),
+                                'url': paper_data.get('url'),
+                                'doi': paper_data.get('doi'),
+                                'abstract': paper_data.get('abstract'),
+                                'section': paper_data.get('section'),
+                                'publication_date': paper_data.get('publication_date').isoformat() if paper_data.get('publication_date') else None,
+                                'scraped_date': paper_data.get('scraped_date').isoformat() if paper_data.get('scraped_date') else None
+                            }
+                            all_new_papers.append(paper_sync_data)
+                
+                total_new += new_papers_count
+                print(f'✅ {journal_name}: {new_papers_count} NEW papers (out of {len(papers)} total)')
+                
+            except Exception as e:
+                print(f'❌ Error scraping {journal_name}: {e}')
+        
+        print(f'📊 TOTAL NEW PAPERS: {total_new}')
+        
+        # Sync new papers to cloud
+        if all_new_papers:
+            print(f'🌐 Syncing {len(all_new_papers)} new papers to cloud...')
+            try:
+                response = requests.post(
+                    'https://research-tracker-466018.uc.r.appspot.com/api/sync-papers',
+                    json=all_new_papers,
+                    headers={'Content-Type': 'application/json'},
+                    timeout=300
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    print(f'✅ Cloud sync successful!')
+                    print(f'   Synced: {result.get(\"synced_papers\", 0)} new papers')
+                    print(f'   Updated: {result.get(\"updated_papers\", 0)} existing papers')
+                    
+                    # Get final stats
+                    stats_response = requests.get('https://research-tracker-466018.uc.r.appspot.com/api/database-stats', timeout=30)
+                    if stats_response.status_code == 200:
+                        stats = stats_response.json()
+                        print(f'📊 Final cloud database: {stats.get(\"total_papers\", 0)} total papers')
+                else:
+                    print(f'❌ Cloud sync failed: {response.status_code}')
+                    print(f'Response: {response.text[:200]}')
+                    
+            except Exception as e:
+                print(f'❌ Cloud sync error: {e}')
+        else:
+            print('📋 No new papers to sync')
+        
+        db.close()
+        "
+        
+    - name: Create run summary
+      run: |
+        echo '## Simple Daily Sync Results' >> $GITHUB_STEP_SUMMARY
+        echo '' >> $GITHUB_STEP_SUMMARY
+        echo '**Strategy:** Git-based backup + incremental scraping' >> $GITHUB_STEP_SUMMARY
+        echo '**Base:** Committed database file with existing papers' >> $GITHUB_STEP_SUMMARY
+        echo '**Process:** Only add NEW papers to avoid duplicates' >> $GITHUB_STEP_SUMMARY
+        echo '' >> $GITHUB_STEP_SUMMARY
+        echo '✅ **Reliable:** No artifact dependencies' >> $GITHUB_STEP_SUMMARY
+        echo '⚡ **Fast:** Skips existing papers' >> $GITHUB_STEP_SUMMARY
+        echo '🔄 **Smart:** Detects and adds only new content' >> $GITHUB_STEP_SUMMARY
