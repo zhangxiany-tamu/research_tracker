@@ -26,17 +26,20 @@ jobs:
         pip install -r requirements.txt
         
     - name: Download latest database backup
-      uses: actions/download-artifact@v4
+      uses: dawidd6/action-download-artifact@v3
       with:
         name: database-backup-latest
         path: ./backup/
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        repo: ${{ github.repository }}
+        workflow_conclusion: success
       continue-on-error: true  # In case no backup exists yet
         
     - name: Restore from backup or create fresh database
       run: |
-        if [ -f "./backup/research_tracker.db" ]; then
+        if [ -f "./backup/backup_research_tracker.db" ]; then
           echo "📦 Restoring from backup..."
-          cp ./backup/research_tracker.db ./research_tracker.db
+          cp ./backup/backup_research_tracker.db ./research_tracker.db
           echo "✅ Database restored from backup"
         else
           echo "⚠️ No backup found, creating fresh database..."

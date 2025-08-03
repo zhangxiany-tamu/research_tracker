@@ -46,10 +46,13 @@ jobs:
         fi
         
     - name: Download database backup
-      uses: actions/download-artifact@v4
+      uses: dawidd6/action-download-artifact@v3
       with:
         name: ${{ steps.backup.outputs.backup_name }}
         path: ./backup/
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        repo: ${{ github.repository }}
+        workflow_conclusion: success
         
     - name: Check cloud database status
       id: check_db
@@ -133,7 +136,7 @@ jobs:
         print('🔄 Converting backup database for cloud sync...')
         
         # Connect to backup database
-        conn = sqlite3.connect('./backup/research_tracker.db')
+        conn = sqlite3.connect('./backup/backup_research_tracker.db')
         cursor = conn.cursor()
         
         # Extract all papers with their relationships
