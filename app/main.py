@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, func
 from typing import List, Optional
 import asyncio
@@ -90,7 +90,7 @@ def startup():
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, db: Session = Depends(get_db)):
     # Get recent papers - order by publication_date first, then scraped_date as fallback
-    recent_papers = db.query(Paper).order_by(
+    recent_papers = db.query(Paper).options(joinedload(Paper.journal)).order_by(
         desc(Paper.publication_date), 
         desc(Paper.scraped_date)
     ).limit(20).all()
@@ -117,7 +117,7 @@ async def papers(
     sort: Optional[str] = "date_desc",
     db: Session = Depends(get_db)
 ):
-    query = db.query(Paper)
+    query = db.query(Paper).options(joinedload(Paper.journal))
     
     # Filter by journal
     if journal:
@@ -208,7 +208,7 @@ async def papers(
 
 @app.get("/paper/{paper_id}", response_class=HTMLResponse)
 async def paper_detail(request: Request, paper_id: int, db: Session = Depends(get_db)):
-    paper = db.query(Paper).filter(Paper.id == paper_id).first()
+    paper = db.query(Paper).options(joinedload(Paper.journal)).filter(Paper.id == paper_id).first()
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
     
@@ -391,7 +391,7 @@ async def api_papers(
     db: Session = Depends(get_db)
 ):
     """API endpoint to get papers as JSON"""
-    query = db.query(Paper)
+    query = db.query(Paper).options(joinedload(Paper.journal))
     
     if journal:
         query = query.join(Journal).filter(Journal.name == journal)
