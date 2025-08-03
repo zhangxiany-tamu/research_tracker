@@ -44,8 +44,26 @@ def startup():
     # Initialize cloud database if running on Google App Engine
     import os
     if os.getenv('GAE_ENV', '').startswith('standard'):
-        print("🌐 Running on Google App Engine - initializing cloud database...")
-        success = init_cloud_database()
+        print("🌐 Running on Google App Engine - checking database...")
+        
+        # Check if database already has data
+        db = SessionLocal()
+        try:
+            paper_count = db.query(Paper).count()
+            journal_count = db.query(Journal).count()
+            print(f"📊 Found {paper_count} papers and {journal_count} journals in database")
+            
+            if paper_count == 0:
+                print("🔧 Database is empty - initializing...")
+                success = init_cloud_database()
+            else:
+                print("✅ Database already populated - skipping initialization")
+                success = True
+        except Exception as e:
+            print(f"⚠️ Database check failed: {e} - proceeding with initialization")
+            success = init_cloud_database()
+        finally:
+            db.close()
         
         # CRITICAL: Always ensure journals have abbreviations on startup
         if success:
