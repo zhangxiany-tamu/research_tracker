@@ -40,20 +40,7 @@ jobs:
           cp local_backup_research_tracker.db ./backup/backup_research_tracker.db
           
           # Create simple backup metadata
-          cat > ./backup/backup_info.json << 'EOF'
-{
-  "timestamp": "2025-08-03T00:00:00Z",
-  "total_papers": 412,
-  "description": "Committed database backup with all existing papers",
-  "results": {
-    "JASA": {"saved": 152},
-    "JRSSB": {"saved": 46}, 
-    "Biometrika": {"saved": 30},
-    "AOS": {"saved": 69},
-    "JMLR": {"saved": 115}
-  }
-}
-EOF
+          echo '{"timestamp":"2025-08-03T00:00:00Z","total_papers":412,"description":"Committed database backup","results":{"JASA":{"saved":152},"JRSSB":{"saved":46},"Biometrika":{"saved":30},"AOS":{"saved":69},"JMLR":{"saved":115}}}' > ./backup/backup_info.json
           
           echo "✅ Backup ready for restore"
         else
