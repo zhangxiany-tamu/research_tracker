@@ -15,11 +15,11 @@ from datetime import datetime
 def init_journals(db: Session):
     """Initialize the journals table"""
     journals_data = [
-        {"name": "Annals of Statistics", "short_name": "AOS", "url": "https://imstat.org/journals-and-publications/annals-of-statistics/"},
-        {"name": "Journal of Machine Learning Research", "short_name": "JMLR", "url": "https://www.jmlr.org/"},
-        {"name": "Journal of the American Statistical Association", "short_name": "JASA", "url": "https://www.tandfonline.com/toc/uasa20/current"},
-        {"name": "Journal of the Royal Statistical Society Series B", "short_name": "JRSS-B", "url": "https://academic.oup.com/jrsssb"},
-        {"name": "Biometrika", "short_name": "Biometrika", "url": "https://academic.oup.com/biomet"}
+        {"name": "Annals of Statistics", "short_name": "AOS", "abbreviation": "AOS", "url": "https://imstat.org/journals-and-publications/annals-of-statistics/"},
+        {"name": "Journal of Machine Learning Research", "short_name": "JMLR", "abbreviation": "JMLR", "url": "https://www.jmlr.org/"},
+        {"name": "Journal of the American Statistical Association", "short_name": "JASA", "abbreviation": "JASA", "url": "https://www.tandfonline.com/toc/uasa20/current"},
+        {"name": "Journal of the Royal Statistical Society Series B", "short_name": "JRSS-B", "abbreviation": "JRSSB", "url": "https://academic.oup.com/jrsssb"},
+        {"name": "Biometrika", "short_name": "Biometrika", "abbreviation": "Biometrika", "url": "https://academic.oup.com/biomet"}
     ]
     
     for journal_data in journals_data:

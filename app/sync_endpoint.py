@@ -117,6 +117,37 @@ async def sync_papers(papers_data: List[Dict], db: Session = Depends(get_db)):
         logging.error(f"Sync error: {e}")
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
 
+@router.post("/api/update-journals")
+async def update_journals(db: Session = Depends(get_db)):
+    """Update existing journals with abbreviations"""
+    try:
+        journal_updates = [
+            {"name": "Annals of Statistics", "abbreviation": "AOS"},
+            {"name": "Journal of Machine Learning Research", "abbreviation": "JMLR"},
+            {"name": "Journal of the American Statistical Association", "abbreviation": "JASA"},
+            {"name": "Journal of the Royal Statistical Society Series B", "abbreviation": "JRSSB"},
+            {"name": "Biometrika", "abbreviation": "Biometrika"}
+        ]
+        
+        updated_count = 0
+        for update_data in journal_updates:
+            journal = db.query(Journal).filter(Journal.name == update_data["name"]).first()
+            if journal:
+                journal.abbreviation = update_data["abbreviation"]
+                updated_count += 1
+        
+        db.commit()
+        
+        return {
+            'status': 'success',
+            'updated_journals': updated_count,
+            'message': f'Updated {updated_count} journals with abbreviations'
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Journal update failed: {str(e)}")
+
 @router.post("/api/init-journals")
 async def init_journals(db: Session = Depends(get_db)):
     """Initialize missing journals in the database"""
