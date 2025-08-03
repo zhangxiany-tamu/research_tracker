@@ -4,9 +4,12 @@ Incremental scraping script - only fetches recent papers (last 60 days)
 Much more efficient than full scraping for daily updates
 """
 
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import requests
 import json
-import os
 from datetime import datetime, date, timedelta
 from app.database import SessionLocal, create_tables
 from app.scrapers import JASAScraper, JRSSBScraper, BiometrikaScraper, AOSScraper, JMLRScraper
