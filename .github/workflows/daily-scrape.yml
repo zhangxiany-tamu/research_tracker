@@ -1,9 +1,9 @@
-name: Daily Paper Scraping
+name: Weekly Full Database Backup
 
 on:
   schedule:
-    # Run daily at 6 AM UTC (adjustable)
-    - cron: '0 6 * * *'
+    # Run weekly on Sundays at 4 AM UTC for full backup
+    - cron: '0 4 * * 0'
   workflow_dispatch:  # Allow manual triggering
     inputs:
       force_full_scrape:
@@ -13,9 +13,9 @@ on:
         type: boolean
 
 jobs:
-  scrape-and-sync:
+  full-backup-scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45  # Allow more time for full scrape
     
     steps:
     - name: Checkout code
@@ -201,7 +201,7 @@ jobs:
         
     - name: Create summary comment
       run: |
-        echo '## Daily Scraping Summary' >> $GITHUB_STEP_SUMMARY
+        echo '## 🗄️ Weekly Full Database Backup Summary' >> $GITHUB_STEP_SUMMARY
         echo '' >> $GITHUB_STEP_SUMMARY
         
         python -c "
@@ -236,11 +236,13 @@ jobs:
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
             f.write('\n'.join(summary_lines))
             f.write('\n\n')
-            f.write(f'🕐 Scraping completed at: {__import__(\"datetime\").datetime.utcnow().strftime(\"%Y-%m-%d %H:%M:%S UTC\")}\n')
-            f.write(f'🌐 Cloud database updated successfully\n')
+            f.write(f'🕐 Weekly backup completed at: {__import__(\"datetime\").datetime.utcnow().strftime(\"%Y-%m-%d %H:%M:%S UTC\")}\n')
+            f.write(f'🌐 Cloud database fully synchronized\n')
+            f.write(f'📊 **Purpose**: Full backup for data integrity & disaster recovery\n')
         "
         
     - name: Notify on failure
       if: failure()
       run: |
-        echo '❌ Daily scraping failed! Check the logs above.' >> $GITHUB_STEP_SUMMARY
+        echo '❌ Weekly full backup failed! Check the logs above.' >> $GITHUB_STEP_SUMMARY
+        echo '💡 Daily incremental updates should continue to work normally.' >> $GITHUB_STEP_SUMMARY
