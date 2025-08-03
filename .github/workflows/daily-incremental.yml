@@ -25,25 +25,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: Download latest database backup
-      uses: dawidd6/action-download-artifact@v3
-      with:
-        name: database-backup-latest
-        path: ./backup/
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        repo: ${{ github.repository }}
-        workflow: Upload Local Database Backup
-        workflow_conclusion: success
-      continue-on-error: true  # In case no backup exists yet
-        
-    - name: Restore from backup or create fresh database
+    - name: Use committed database backup as base
       run: |
-        if [ -f "./backup/backup_research_tracker.db" ]; then
-          echo "📦 Restoring from backup..."
-          cp ./backup/backup_research_tracker.db ./research_tracker.db
-          echo "✅ Database restored from backup"
+        if [ -f "local_backup_research_tracker.db" ]; then
+          echo "📦 Using committed database backup as base"
+          cp local_backup_research_tracker.db research_tracker.db
+          echo "✅ Database ready with existing papers"
         else
-          echo "⚠️ No backup found, creating fresh database..."
+          echo "⚠️ No committed backup found, creating fresh database"
           python -c "
 from app.database import engine
 from app.models import Base
@@ -151,23 +140,7 @@ print('✅ Fresh database created')
             db.close()
         "
         
-    - name: Upload updated backup
-      uses: actions/upload-artifact@v4
-      with:
-        name: database-backup-latest
-        path: |
-          research_tracker.db
-          incremental_results.json
-        retention-days: 90
-        
-    - name: Upload timestamped backup
-      uses: actions/upload-artifact@v4
-      with:
-        name: database-backup-${{ github.run_id }}
-        path: |
-          research_tracker.db
-          incremental_results.json
-        retention-days: 90
+    # No need to upload artifacts - using git-committed backup approach
         
     - name: Sync new papers to cloud
       env:

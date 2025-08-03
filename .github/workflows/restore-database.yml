@@ -32,28 +32,17 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: Determine backup to restore
-      id: backup
+    - name: Use committed database backup
       run: |
-        if [ -n "${{ github.event.inputs.backup_run_id }}" ]; then
-          BACKUP_NAME="database-backup-${{ github.event.inputs.backup_run_id }}"
-          echo "backup_name=$BACKUP_NAME" >> $GITHUB_OUTPUT
-          echo "Restoring from specific backup: $BACKUP_NAME"
+        if [ -f "local_backup_research_tracker.db" ]; then
+          echo "📦 Using committed database backup"
+          mkdir -p ./backup/
+          cp local_backup_research_tracker.db ./backup/backup_research_tracker.db
+          echo "✅ Backup ready for restore"
         else
-          BACKUP_NAME="database-backup-latest"
-          echo "backup_name=$BACKUP_NAME" >> $GITHUB_OUTPUT
-          echo "Restoring from latest backup: $BACKUP_NAME"
+          echo "❌ No committed database backup found"
+          exit 1
         fi
-        
-    - name: Download database backup
-      uses: dawidd6/action-download-artifact@v3
-      with:
-        name: ${{ steps.backup.outputs.backup_name }}
-        path: ./backup/
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        repo: ${{ github.repository }}
-        workflow: Upload Local Database Backup
-        workflow_conclusion: success
         
     - name: Check cloud database status
       id: check_db
