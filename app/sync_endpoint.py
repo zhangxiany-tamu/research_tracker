@@ -117,6 +117,40 @@ async def sync_papers(papers_data: List[Dict], db: Session = Depends(get_db)):
         logging.error(f"Sync error: {e}")
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
 
+@router.post("/api/init-journals")
+async def init_journals(db: Session = Depends(get_db)):
+    """Initialize missing journals in the database"""
+    try:
+        journals_data = [
+            {"name": "Annals of Statistics", "abbreviation": "AOS", "url": "https://imstat.org/journals-and-publications/annals-of-statistics/"},
+            {"name": "Journal of Machine Learning Research", "abbreviation": "JMLR", "url": "https://www.jmlr.org/"},
+            {"name": "Journal of the American Statistical Association", "abbreviation": "JASA", "url": "https://www.tandfonline.com/toc/uasa20/current"},
+            {"name": "Journal of the Royal Statistical Society Series B", "abbreviation": "JRSS-B", "url": "https://academic.oup.com/jrsssb"},
+            {"name": "Biometrika", "abbreviation": "Biometrika", "url": "https://academic.oup.com/biomet"}
+        ]
+        
+        created_count = 0
+        for journal_data in journals_data:
+            existing_journal = db.query(Journal).filter(Journal.name == journal_data["name"]).first()
+            if not existing_journal:
+                journal = Journal(**journal_data)
+                db.add(journal)
+                created_count += 1
+                logging.info(f"Created journal: {journal_data['name']}")
+        
+        db.commit()
+        
+        return {
+            'status': 'success',
+            'created_journals': created_count,
+            'message': f'Initialized {created_count} missing journals'
+        }
+        
+    except Exception as e:
+        db.rollback()
+        logging.error(f"Journal initialization error: {e}")
+        raise HTTPException(status_code=500, detail=f"Journal initialization failed: {str(e)}")
+
 @router.get("/api/database-stats")
 async def get_database_stats(db: Session = Depends(get_db)):
     """Get current database statistics"""

@@ -917,7 +917,7 @@ class JRSSBScraper(BaseScraper):
         
         try:
             print("JRSSB: Attempting direct scraping...")
-            response = self.session.get(self.base_url, timeout=10)
+            response = self.session.get(self.base_url, timeout=30)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.content, 'html.parser')
