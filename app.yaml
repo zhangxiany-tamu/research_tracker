@@ -2,8 +2,9 @@ runtime: python311
 
 env_variables:
   PYTHONPATH: /opt/python/app
+  PLAYWRIGHT_BROWSERS_PATH: /opt/render/project/.cache/ms-playwright
 
-entrypoint: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+entrypoint: bash start_server.sh
 
 automatic_scaling:
   min_instances: 1
@@ -11,7 +12,7 @@ automatic_scaling:
 
 resources:
   cpu: 1
-  memory_gb: 1
+  memory_gb: 2
   disk_size_gb: 10
 
 handlers:
