@@ -37,22 +37,49 @@ async def sync_papers(papers_data: List[Dict], db: Session = Depends(get_db)):
                 if not journal:
                     continue
                 
-                # Check if paper already exists
-                existing_paper = db.query(Paper).filter(
-                    Paper.title == paper_data.get('title'),
-                    Paper.journal_id == journal.id
-                ).first()
+                # Check if paper already exists (multiple criteria for robust duplicate detection)
+                existing_paper = None
+                
+                # First check by DOI if available (most reliable)
+                doi = paper_data.get('doi')
+                if doi:
+                    existing_paper = db.query(Paper).filter(Paper.doi == doi).first()
+                
+                # If no DOI match, check by title + journal (fallback)
+                if not existing_paper:
+                    existing_paper = db.query(Paper).filter(
+                        Paper.title == paper_data.get('title'),
+                        Paper.journal_id == journal.id
+                    ).first()
                 
                 if existing_paper:
                     # Update existing paper if needed
+                    updated = False
+                    
+                    # Update publication date if available
                     if paper_data.get('publication_date'):
                         try:
                             pub_date = datetime.fromisoformat(paper_data['publication_date'])
                             if existing_paper.publication_date != pub_date:
                                 existing_paper.publication_date = pub_date
-                                updated_count += 1
+                                updated = True
                         except:
                             pass
+                    
+                    # Update DOI if existing paper doesn't have one but new data does
+                    if doi and not existing_paper.doi:
+                        existing_paper.doi = doi
+                        updated = True
+                    
+                    # Update URL if existing paper doesn't have one but new data does
+                    new_url = paper_data.get('url')
+                    if new_url and not existing_paper.url:
+                        existing_paper.url = new_url
+                        updated = True
+                    
+                    if updated:
+                        updated_count += 1
+                    
                     continue
                 
                 # Create new paper
@@ -70,34 +97,45 @@ async def sync_papers(papers_data: List[Dict], db: Session = Depends(get_db)):
                     except:
                         pass
                 
-                paper = Paper(
-                    title=paper_data.get('title'),
-                    abstract=paper_data.get('abstract'),
-                    doi=paper_data.get('doi'),
-                    url=paper_data.get('url'),
-                    publication_date=pub_date,
-                    scraped_date=scraped_date,
-                    section=paper_data.get('section'),
-                    journal_id=journal.id
-                )
-                
-                db.add(paper)
-                db.flush()
-                
-                # Add authors
-                authors = paper_data.get('authors', [])
-                for author_name in authors:
-                    if author_name:
-                        author = data_service.get_or_create_author(author_name)
-                        paper.authors.append(author)
-                
-                # Add topics
-                detected_topics = data_service.extract_topics_from_title(paper_data.get('title', ''))
-                for topic_name in detected_topics:
-                    topic = data_service.get_or_create_topic(topic_name)
-                    paper.topics.append(topic)
-                
-                synced_count += 1
+                try:
+                    paper = Paper(
+                        title=paper_data.get('title'),
+                        abstract=paper_data.get('abstract'),
+                        doi=paper_data.get('doi'),
+                        url=paper_data.get('url'),
+                        publication_date=pub_date,
+                        scraped_date=scraped_date,
+                        section=paper_data.get('section'),
+                        journal_id=journal.id
+                    )
+                    
+                    db.add(paper)
+                    db.flush()
+                    
+                    # Add authors
+                    authors = paper_data.get('authors', [])
+                    for author_name in authors:
+                        if author_name:
+                            author = data_service.get_or_create_author(author_name)
+                            paper.authors.append(author)
+                    
+                    # Add topics
+                    detected_topics = data_service.extract_topics_from_title(paper_data.get('title', ''))
+                    for topic_name in detected_topics:
+                        topic = data_service.get_or_create_topic(topic_name)
+                        paper.topics.append(topic)
+                    
+                    synced_count += 1
+                    
+                except Exception as paper_error:
+                    # Handle database constraint violations gracefully
+                    print(f"Warning: Could not sync paper '{paper_data.get('title', 'Unknown')}': {paper_error}")
+                    # Reset the session state to continue processing
+                    try:
+                        db.rollback()
+                    except:
+                        pass
+                    continue
                 
             except Exception as e:
                 logging.error(f"Error syncing paper {paper_data.get('title', 'Unknown')}: {e}")
