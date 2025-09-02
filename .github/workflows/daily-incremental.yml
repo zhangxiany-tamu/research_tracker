@@ -31,6 +31,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
+    - name: Install Playwright browsers
+      run: |
+        playwright install chromium
+        playwright install-deps
+        
     - name: Run incremental scraping (recent papers only)
       env:
         CLOUD_URL: ${{ secrets.CLOUD_URL || 'https://research-tracker-466018.uc.r.appspot.com' }}

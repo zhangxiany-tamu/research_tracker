@@ -5,6 +5,18 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from urllib.parse import urljoin, urlparse
 
+# Import Playwright scrapers for problematic journals
+try:
+    from app.playwright_scrapers import (
+        scrape_jasa_with_playwright,
+        scrape_jrssb_with_playwright,
+        scrape_biometrika_with_playwright
+    )
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
+    print("Warning: Playwright not available, falling back to traditional scraping")
+
 class BaseScraper:
     def __init__(self, journal_name: str, base_url: str):
         self.journal_name = journal_name
@@ -829,7 +841,18 @@ class JASAScraper(BaseScraper):
         """Scrape all papers from all available pages"""
         papers = []
         
-        # Try direct scraping first (better author extraction)
+        # Try Playwright first if available
+        if PLAYWRIGHT_AVAILABLE:
+            print("JASA: Attempting Playwright-based scraping...")
+            try:
+                papers = scrape_jasa_with_playwright()
+                if papers:
+                    print(f"JASA: Successfully scraped {len(papers)} papers via Playwright")
+                    return papers
+            except Exception as e:
+                print(f"JASA: Playwright scraping failed: {e}")
+        
+        # Fallback to direct scraping
         print("JASA: Attempting direct scraping...")
         
         try:
@@ -915,6 +938,18 @@ class JRSSBScraper(BaseScraper):
         """Scrape papers from JRSSB advance articles page"""
         papers = []
         
+        # Try Playwright first if available
+        if PLAYWRIGHT_AVAILABLE:
+            print("JRSSB: Attempting Playwright-based scraping...")
+            try:
+                papers = scrape_jrssb_with_playwright()
+                if papers:
+                    print(f"JRSSB: Successfully scraped {len(papers)} papers via Playwright")
+                    return papers
+            except Exception as e:
+                print(f"JRSSB: Playwright scraping failed: {e}")
+        
+        # Fallback to direct scraping
         try:
             print("JRSSB: Attempting direct scraping...")
             response = self.session.get(self.base_url, timeout=30)
@@ -1058,6 +1093,18 @@ class BiometrikaScraper(BaseScraper):
         """Scrape papers from Biometrika advance articles using JRSSB approach"""
         papers = []
         
+        # Try Playwright first if available
+        if PLAYWRIGHT_AVAILABLE:
+            print("Biometrika: Attempting Playwright-based scraping...")
+            try:
+                papers = scrape_biometrika_with_playwright()
+                if papers:
+                    print(f"Biometrika: Successfully scraped {len(papers)} papers via Playwright")
+                    return papers
+            except Exception as e:
+                print(f"Biometrika: Playwright scraping failed: {e}")
+        
+        # Fallback to direct scraping
         try:
             print(f"Attempting to scrape {self.journal_name} from {self.base_url}")
             
