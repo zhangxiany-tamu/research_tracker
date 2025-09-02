@@ -398,16 +398,55 @@ class PlaywrightBiometrikaScraper:
 def scrape_jasa_with_playwright() -> List[Dict]:
     """Synchronous wrapper for JASA Playwright scraper"""
     scraper = PlaywrightJASAScraper()
-    return asyncio.run(scraper.scrape_papers())
+    try:
+        # Check if we're already in an event loop (FastAPI environment)
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # Create a new task and run it in the existing loop
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, scraper.scrape_papers())
+                return future.result()
+        else:
+            return asyncio.run(scraper.scrape_papers())
+    except RuntimeError:
+        # Fallback to asyncio.run if get_event_loop fails
+        return asyncio.run(scraper.scrape_papers())
 
 
 def scrape_jrssb_with_playwright() -> List[Dict]:
     """Synchronous wrapper for JRSSB Playwright scraper"""
     scraper = PlaywrightJRSSBScraper()
-    return asyncio.run(scraper.scrape_papers())
+    try:
+        # Check if we're already in an event loop (FastAPI environment)
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # Create a new task and run it in the existing loop
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, scraper.scrape_papers())
+                return future.result()
+        else:
+            return asyncio.run(scraper.scrape_papers())
+    except RuntimeError:
+        # Fallback to asyncio.run if get_event_loop fails
+        return asyncio.run(scraper.scrape_papers())
 
 
 def scrape_biometrika_with_playwright() -> List[Dict]:
     """Synchronous wrapper for Biometrika Playwright scraper"""
     scraper = PlaywrightBiometrikaScraper()
-    return asyncio.run(scraper.scrape_papers())
+    try:
+        # Check if we're already in an event loop (FastAPI environment)
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # Create a new task and run it in the existing loop
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, scraper.scrape_papers())
+                return future.result()
+        else:
+            return asyncio.run(scraper.scrape_papers())
+    except RuntimeError:
+        # Fallback to asyncio.run if get_event_loop fails
+        return asyncio.run(scraper.scrape_papers())
