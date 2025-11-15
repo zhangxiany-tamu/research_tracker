@@ -20,26 +20,72 @@ class PlaywrightJASAScraper:
     async def scrape_papers(self) -> List[Dict]:
         """Scrape JASA papers using Playwright"""
         papers = []
-        
+
         try:
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
+                # Launch with stealth settings
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=[
+                        '--disable-blink-features=AutomationControlled',
+                        '--disable-dev-shm-usage',
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox'
+                    ]
+                )
+                # Create context with realistic browser fingerprint
                 context = await browser.new_context(
-                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                    viewport={'width': 1920, 'height': 1080},
+                    locale='en-US',
+                    timezone_id='America/New_York',
+                    extra_http_headers={
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Accept-Encoding': 'gzip, deflate, br',
+                        'DNT': '1',
+                        'Connection': 'keep-alive',
+                        'Upgrade-Insecure-Requests': '1',
+                        'Sec-Fetch-Dest': 'document',
+                        'Sec-Fetch-Mode': 'navigate',
+                        'Sec-Fetch-Site': 'none',
+                        'Sec-Fetch-User': '?1',
+                        'Cache-Control': 'max-age=0'
+                    }
                 )
                 page = await context.new_page()
+
+                # Add stealth scripts to avoid detection
+                await page.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', {
+                        get: () => undefined
+                    });
+                    window.navigator.chrome = {
+                        runtime: {}
+                    };
+                    Object.defineProperty(navigator, 'plugins', {
+                        get: () => [1, 2, 3, 4, 5]
+                    });
+                    Object.defineProperty(navigator, 'languages', {
+                        get: () => ['en-US', 'en']
+                    });
+                """)
                 
                 # Scrape first 3 pages (most recent papers)
                 for page_num in range(3):
                     url = f"{self.base_url}&startPage={page_num}"
                     print(f"JASA Playwright: Fetching page {page_num}...")
-                    
-                    await page.goto(url, wait_until='domcontentloaded')
-                    await asyncio.sleep(3)  # Wait for dynamic content
-                    
+
+                    # Random delay to appear more human-like
+                    import random
+                    await asyncio.sleep(random.uniform(1, 3))
+
+                    await page.goto(url, wait_until='networkidle', timeout=30000)
+                    await asyncio.sleep(random.uniform(2, 4))  # Random wait for dynamic content
+
                     # Check if articles loaded
                     try:
-                        await page.wait_for_selector('.tocArticleEntry', timeout=5000)
+                        await page.wait_for_selector('.tocArticleEntry', timeout=10000)
                     except:
                         print(f"JASA Playwright: No articles found on page {page_num}")
                         break
@@ -147,18 +193,65 @@ class PlaywrightJRSSBScraper:
     async def scrape_papers(self) -> List[Dict]:
         """Scrape JRSSB papers using Playwright"""
         papers = []
-        
+
         try:
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
+                # Launch with stealth settings
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=[
+                        '--disable-blink-features=AutomationControlled',
+                        '--disable-dev-shm-usage',
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox'
+                    ]
+                )
+                # Create context with realistic browser fingerprint
                 context = await browser.new_context(
-                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                    viewport={'width': 1920, 'height': 1080},
+                    locale='en-US',
+                    timezone_id='America/New_York',
+                    extra_http_headers={
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Accept-Encoding': 'gzip, deflate, br',
+                        'DNT': '1',
+                        'Connection': 'keep-alive',
+                        'Upgrade-Insecure-Requests': '1',
+                        'Sec-Fetch-Dest': 'document',
+                        'Sec-Fetch-Mode': 'navigate',
+                        'Sec-Fetch-Site': 'none',
+                        'Sec-Fetch-User': '?1',
+                        'Cache-Control': 'max-age=0'
+                    }
                 )
                 page = await context.new_page()
-                
+
+                # Add stealth scripts to avoid detection
+                await page.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', {
+                        get: () => undefined
+                    });
+                    window.navigator.chrome = {
+                        runtime: {}
+                    };
+                    Object.defineProperty(navigator, 'plugins', {
+                        get: () => [1, 2, 3, 4, 5]
+                    });
+                    Object.defineProperty(navigator, 'languages', {
+                        get: () => ['en-US', 'en']
+                    });
+                """)
+
                 print(f"JRSSB Playwright: Fetching {self.base_url}...")
-                await page.goto(self.base_url, wait_until='domcontentloaded')
-                await asyncio.sleep(3)  # Wait for dynamic content
+
+                # Random delay to appear more human-like
+                import random
+                await asyncio.sleep(random.uniform(1, 3))
+
+                await page.goto(self.base_url, wait_until='networkidle', timeout=30000)
+                await asyncio.sleep(random.uniform(2, 4))  # Random wait for dynamic content
                 
                 # Wait for articles to load
                 try:
@@ -271,18 +364,65 @@ class PlaywrightBiometrikaScraper:
     async def scrape_papers(self) -> List[Dict]:
         """Scrape Biometrika papers using Playwright"""
         papers = []
-        
+
         try:
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
+                # Launch with stealth settings
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=[
+                        '--disable-blink-features=AutomationControlled',
+                        '--disable-dev-shm-usage',
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox'
+                    ]
+                )
+                # Create context with realistic browser fingerprint
                 context = await browser.new_context(
-                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                    viewport={'width': 1920, 'height': 1080},
+                    locale='en-US',
+                    timezone_id='America/New_York',
+                    extra_http_headers={
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Accept-Encoding': 'gzip, deflate, br',
+                        'DNT': '1',
+                        'Connection': 'keep-alive',
+                        'Upgrade-Insecure-Requests': '1',
+                        'Sec-Fetch-Dest': 'document',
+                        'Sec-Fetch-Mode': 'navigate',
+                        'Sec-Fetch-Site': 'none',
+                        'Sec-Fetch-User': '?1',
+                        'Cache-Control': 'max-age=0'
+                    }
                 )
                 page = await context.new_page()
-                
+
+                # Add stealth scripts to avoid detection
+                await page.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', {
+                        get: () => undefined
+                    });
+                    window.navigator.chrome = {
+                        runtime: {}
+                    };
+                    Object.defineProperty(navigator, 'plugins', {
+                        get: () => [1, 2, 3, 4, 5]
+                    });
+                    Object.defineProperty(navigator, 'languages', {
+                        get: () => ['en-US', 'en']
+                    });
+                """)
+
                 print(f"Biometrika Playwright: Fetching {self.base_url}...")
-                await page.goto(self.base_url, wait_until='domcontentloaded')
-                await asyncio.sleep(3)  # Wait for dynamic content
+
+                # Random delay to appear more human-like
+                import random
+                await asyncio.sleep(random.uniform(1, 3))
+
+                await page.goto(self.base_url, wait_until='networkidle', timeout=30000)
+                await asyncio.sleep(random.uniform(2, 4))  # Random wait for dynamic content
                 
                 # Wait for articles to load
                 try:

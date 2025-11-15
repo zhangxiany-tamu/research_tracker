@@ -66,6 +66,12 @@ CLAUDE.md
 DEPLOYMENT_*.md
 GITHUB_ACTIONS_*.md
 
-# App Engine
-.gcloudignore
-EOF < /dev/null
+# App Engine & Google Cloud SDK
+google-cloud-sdk/
+google-cloud-cli-*.tar.gz
+*.tar.gz
+
+# Deployment scripts and docs
+deploy.sh
+auth_and_deploy.sh
+DEPLOY_NOW.md
