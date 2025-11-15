@@ -80,14 +80,28 @@ class PlaywrightJASAScraper:
                     import random
                     await asyncio.sleep(random.uniform(1, 3))
 
-                    await page.goto(url, wait_until='networkidle', timeout=30000)
-                    await asyncio.sleep(random.uniform(2, 4))  # Random wait for dynamic content
-
-                    # Check if articles loaded
                     try:
-                        await page.wait_for_selector('.tocArticleEntry', timeout=10000)
-                    except:
-                        print(f"JASA Playwright: No articles found on page {page_num}")
+                        await page.goto(url, wait_until='networkidle', timeout=60000)
+                    except Exception as e:
+                        print(f"JASA Playwright: Page load error on page {page_num}: {e}")
+                        break
+
+                    await asyncio.sleep(random.uniform(3, 5))  # Longer wait for dynamic content
+
+                    # Check if articles loaded with longer timeout
+                    try:
+                        await page.wait_for_selector('.tocArticleEntry', timeout=20000)
+                        print(f"JASA Playwright: Articles loaded on page {page_num}")
+                    except Exception as e:
+                        print(f"JASA Playwright: Selector timeout on page {page_num}: {e}")
+                        # Try to get page content anyway to debug
+                        content = await page.content()
+                        if '403' in content or 'Forbidden' in content:
+                            print(f"JASA Playwright: Page shows 403/Forbidden error")
+                        elif len(content) < 1000:
+                            print(f"JASA Playwright: Page content too short ({len(content)} chars)")
+                        else:
+                            print(f"JASA Playwright: Page loaded but selector not found (content: {len(content)} chars)")
                         break
                     
                     # Get page content
@@ -250,20 +264,40 @@ class PlaywrightJRSSBScraper:
                 import random
                 await asyncio.sleep(random.uniform(1, 3))
 
-                await page.goto(self.base_url, wait_until='networkidle', timeout=30000)
-                await asyncio.sleep(random.uniform(2, 4))  # Random wait for dynamic content
-                
-                # Wait for articles to load
                 try:
-                    await page.wait_for_selector('.al-article-item', timeout=5000)
+                    await page.goto(self.base_url, wait_until='networkidle', timeout=60000)
+                except Exception as e:
+                    print(f"JRSSB Playwright: Page load error: {e}")
+                    await browser.close()
+                    return papers
+
+                await asyncio.sleep(random.uniform(3, 5))  # Longer wait for dynamic content
+
+                # Wait for articles to load with better error handling
+                articles_found = False
+                try:
+                    await page.wait_for_selector('.al-article-item', timeout=20000)
+                    articles_found = True
+                    print("JRSSB Playwright: Articles loaded (.al-article-item)")
                 except:
                     # Try alternative selector
                     try:
-                        await page.wait_for_selector('.al-article-box', timeout=5000)
-                    except:
-                        print("JRSSB Playwright: No articles found")
+                        await page.wait_for_selector('.al-article-box', timeout=20000)
+                        articles_found = True
+                        print("JRSSB Playwright: Articles loaded (.al-article-box)")
+                    except Exception as e:
+                        print(f"JRSSB Playwright: Selector timeout: {e}")
+                        content = await page.content()
+                        if '403' in content or 'Forbidden' in content:
+                            print("JRSSB Playwright: Page shows 403/Forbidden")
+                        else:
+                            print(f"JRSSB Playwright: Page loaded but selectors not found (content: {len(content)} chars)")
                         await browser.close()
                         return papers
+
+                if not articles_found:
+                    await browser.close()
+                    return papers
                 
                 # Get page content
                 content = await page.content()
@@ -421,20 +455,40 @@ class PlaywrightBiometrikaScraper:
                 import random
                 await asyncio.sleep(random.uniform(1, 3))
 
-                await page.goto(self.base_url, wait_until='networkidle', timeout=30000)
-                await asyncio.sleep(random.uniform(2, 4))  # Random wait for dynamic content
-                
-                # Wait for articles to load
                 try:
-                    await page.wait_for_selector('.al-article-box', timeout=5000)
+                    await page.goto(self.base_url, wait_until='networkidle', timeout=60000)
+                except Exception as e:
+                    print(f"Biometrika Playwright: Page load error: {e}")
+                    await browser.close()
+                    return papers
+
+                await asyncio.sleep(random.uniform(3, 5))  # Longer wait for dynamic content
+
+                # Wait for articles to load with better error handling
+                articles_found = False
+                try:
+                    await page.wait_for_selector('.al-article-box', timeout=20000)
+                    articles_found = True
+                    print("Biometrika Playwright: Articles loaded (.al-article-box)")
                 except:
                     # Try alternative selector
                     try:
-                        await page.wait_for_selector('.al-article-item', timeout=5000)
-                    except:
-                        print("Biometrika Playwright: No articles found")
+                        await page.wait_for_selector('.al-article-item', timeout=20000)
+                        articles_found = True
+                        print("Biometrika Playwright: Articles loaded (.al-article-item)")
+                    except Exception as e:
+                        print(f"Biometrika Playwright: Selector timeout: {e}")
+                        content = await page.content()
+                        if '403' in content or 'Forbidden' in content:
+                            print("Biometrika Playwright: Page shows 403/Forbidden")
+                        else:
+                            print(f"Biometrika Playwright: Page loaded but selectors not found (content: {len(content)} chars)")
                         await browser.close()
                         return papers
+
+                if not articles_found:
+                    await browser.close()
+                    return papers
                 
                 # Get page content
                 content = await page.content()
