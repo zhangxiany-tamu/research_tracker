@@ -149,10 +149,9 @@ async def debug_papers(db: Session = Depends(get_db)):
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, db: Session = Depends(get_db)):
-    # Get recent papers - order by publication_date first, then scraped_date as fallback
+    # Get recent papers - use COALESCE to fall back to scraped_date when publication_date is NULL
     recent_papers = db.query(Paper).options(joinedload(Paper.journal)).order_by(
-        desc(Paper.publication_date), 
-        desc(Paper.scraped_date)
+        desc(func.coalesce(Paper.publication_date, Paper.scraped_date))
     ).limit(20).all()
     
     # Get journal statistics

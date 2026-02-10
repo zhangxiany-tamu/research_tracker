@@ -5,6 +5,18 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from urllib.parse import urljoin, urlparse
 
+# Import CrossRef scrapers (primary source for Cloudflare-blocked journals)
+try:
+    from app.crossref_scrapers import (
+        CrossRefJASAScraper,
+        CrossRefJRSSBScraper,
+        CrossRefBiometrikaScraper,
+    )
+    CROSSREF_AVAILABLE = True
+except ImportError:
+    CROSSREF_AVAILABLE = False
+    print("Warning: CrossRef scrapers not available")
+
 # Import Playwright scrapers for problematic journals
 try:
     from app.playwright_scrapers import (
@@ -840,8 +852,20 @@ class JASAScraper(BaseScraper):
     def scrape_papers(self) -> List[Dict]:
         """Scrape all papers from all available pages"""
         papers = []
-        
-        # Try Playwright first if available
+
+        # Try CrossRef API first (primary source)
+        if CROSSREF_AVAILABLE:
+            print("JASA: Attempting CrossRef API scraping...")
+            try:
+                crossref = CrossRefJASAScraper()
+                papers = crossref.scrape_papers()
+                if papers:
+                    print(f"JASA: Successfully scraped {len(papers)} papers via CrossRef")
+                    return papers
+            except Exception as e:
+                print(f"JASA: CrossRef scraping failed: {e}")
+
+        # Try Playwright as second option
         if PLAYWRIGHT_AVAILABLE:
             print("JASA: Attempting Playwright-based scraping...")
             try:
@@ -851,7 +875,7 @@ class JASAScraper(BaseScraper):
                     return papers
             except Exception as e:
                 print(f"JASA: Playwright scraping failed: {e}")
-        
+
         # Fallback to direct scraping
         print("JASA: Attempting direct scraping...")
         
@@ -937,8 +961,20 @@ class JRSSBScraper(BaseScraper):
     def scrape_papers(self) -> List[Dict]:
         """Scrape papers from JRSSB advance articles page"""
         papers = []
-        
-        # Try Playwright first if available
+
+        # Try CrossRef API first (primary source)
+        if CROSSREF_AVAILABLE:
+            print("JRSSB: Attempting CrossRef API scraping...")
+            try:
+                crossref = CrossRefJRSSBScraper()
+                papers = crossref.scrape_papers()
+                if papers:
+                    print(f"JRSSB: Successfully scraped {len(papers)} papers via CrossRef")
+                    return papers
+            except Exception as e:
+                print(f"JRSSB: CrossRef scraping failed: {e}")
+
+        # Try Playwright as second option
         if PLAYWRIGHT_AVAILABLE:
             print("JRSSB: Attempting Playwright-based scraping...")
             try:
@@ -948,7 +984,7 @@ class JRSSBScraper(BaseScraper):
                     return papers
             except Exception as e:
                 print(f"JRSSB: Playwright scraping failed: {e}")
-        
+
         # Fallback to direct scraping
         try:
             print("JRSSB: Attempting direct scraping...")
@@ -1092,8 +1128,20 @@ class BiometrikaScraper(BaseScraper):
     def scrape_papers(self) -> List[Dict]:
         """Scrape papers from Biometrika advance articles using JRSSB approach"""
         papers = []
-        
-        # Try Playwright first if available
+
+        # Try CrossRef API first (primary source)
+        if CROSSREF_AVAILABLE:
+            print("Biometrika: Attempting CrossRef API scraping...")
+            try:
+                crossref = CrossRefBiometrikaScraper()
+                papers = crossref.scrape_papers()
+                if papers:
+                    print(f"Biometrika: Successfully scraped {len(papers)} papers via CrossRef")
+                    return papers
+            except Exception as e:
+                print(f"Biometrika: CrossRef scraping failed: {e}")
+
+        # Try Playwright as second option
         if PLAYWRIGHT_AVAILABLE:
             print("Biometrika: Attempting Playwright-based scraping...")
             try:
@@ -1103,7 +1151,7 @@ class BiometrikaScraper(BaseScraper):
                     return papers
             except Exception as e:
                 print(f"Biometrika: Playwright scraping failed: {e}")
-        
+
         # Fallback to direct scraping
         try:
             print(f"Attempting to scrape {self.journal_name} from {self.base_url}")
