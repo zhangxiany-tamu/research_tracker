@@ -124,9 +124,9 @@ jobs:
         python -c "
         import sqlite3
         import json
-        import requests
         import os
         from datetime import datetime
+        from scripts.cloud_sync import sync_to_cloud
         
         print('🔄 Converting backup database for cloud sync...')
         
@@ -179,36 +179,13 @@ jobs:
             print(f'📦 Prepared {len(papers_data)} papers for cloud sync')
             
             # Sync to cloud
-            cloud_url = 'https://research-tracker-466018.uc.r.appspot.com'
-            
+            cloud_url = os.getenv('CLOUD_URL', 'https://research-tracker-466018.uc.r.appspot.com')
             print(f'🌐 Syncing to cloud database: {cloud_url}')
             
-            response = requests.post(
-                f'{cloud_url}/api/sync-papers',
-                json=papers_data,
-                headers={'Content-Type': 'application/json'},
-                timeout=300
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
+            if sync_to_cloud(papers_data, cloud_url):
                 print(f'✅ Database restore successful!')
-                print(f'   Synced: {result.get(\"synced_papers\", 0)} papers')
-                print(f'   Updated: {result.get(\"updated_papers\", 0)} papers')
-                print(f'   Total processed: {result.get(\"total_processed\", 0)} papers')
-                
-                # Get final database stats
-                stats_response = requests.get(f'{cloud_url}/api/database-stats', timeout=30)
-                if stats_response.status_code == 200:
-                    stats = stats_response.json()
-                    print(f'📊 Final cloud database stats:')
-                    print(f'   Total papers: {stats.get(\"total_papers\", 0)}')
-                    for journal, count in stats.get('journal_stats', {}).items():
-                        print(f'   {journal}: {count} papers')
-                        
             else:
-                print(f'❌ Database restore failed: {response.status_code}')
-                print(f'Response: {response.text[:500]}')
+                print(f'❌ Database restore failed')
                 exit(1)
                 
         except Exception as e:

@@ -4,8 +4,6 @@ Scrape papers locally and sync to cloud database
 Can be run manually or by GitHub Actions
 """
 
-import requests
-import json
 import os
 import sys
 from datetime import datetime
@@ -17,6 +15,7 @@ from app.database import SessionLocal, engine
 from app.models import Base, Paper, Journal
 from app.scrapers import JASAScraper, JRSSBScraper, BiometrikaScraper, AOSScraper, JMLRScraper
 from app.data_service import DataService
+from cloud_sync import sync_to_cloud
 
 def setup_local_database():
     """Create fresh local database"""
@@ -84,57 +83,6 @@ def scrape_all_papers():
         
     finally:
         db.close()
-
-def sync_to_cloud(papers_data, cloud_url='https://research-tracker-466018.uc.r.appspot.com'):
-    """Sync papers to cloud database"""
-    print(f"\n🌐 Syncing {len(papers_data)} papers to cloud...")
-    
-    # Ensure URL has proper scheme and is not empty
-    cloud_url = cloud_url.strip()
-    if not cloud_url:
-        cloud_url = 'https://research-tracker-466018.uc.r.appspot.com'
-    
-    if not cloud_url.startswith(('http://', 'https://')):
-        cloud_url = 'https://' + cloud_url
-    
-    print(f"Cloud URL: {cloud_url}")
-    
-    try:
-        response = requests.post(
-            f'{cloud_url}/api/sync-papers',
-            json=papers_data,
-            headers={'Content-Type': 'application/json'},
-            timeout=300  # 5 minutes
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            print(f"✅ Cloud sync successful!")
-            print(f"   Synced: {result.get('synced_papers', 0)} new papers")
-            print(f"   Updated: {result.get('updated_papers', 0)} existing papers")
-            print(f"   Total processed: {result.get('total_processed', 0)} papers")
-            
-            # Get updated stats
-            try:
-                stats_response = requests.get(f'{cloud_url}/api/database-stats', timeout=30)
-                if stats_response.status_code == 200:
-                    stats = stats_response.json()
-                    print(f"\n📊 Updated cloud database stats:")
-                    print(f"   Total papers: {stats.get('total_papers', 0)}")
-                    for journal, count in stats.get('journal_stats', {}).items():
-                        print(f"   {journal}: {count} papers")
-            except:
-                pass  # Stats are optional
-            
-            return True
-        else:
-            print(f"❌ Cloud sync failed: {response.status_code}")
-            print(f"Response: {response.text[:500]}")
-            return False
-            
-    except Exception as e:
-        print(f"❌ Cloud sync error: {e}")
-        return False
 
 def print_summary(results):
     """Print scraping summary"""

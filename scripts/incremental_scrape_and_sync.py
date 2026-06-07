@@ -8,12 +8,11 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import requests
-import json
 from datetime import datetime, date, timedelta
 from app.database import SessionLocal, create_tables
 from app.scrapers import JASAScraper, JRSSBScraper, BiometrikaScraper, AOSScraper, JMLRScraper
 from app.data_service import DataService
+from cloud_sync import sync_to_cloud
 
 class IncrementalScrapers:
     """Enhanced scrapers that only fetch recent papers"""
@@ -160,38 +159,14 @@ def main():
     # Cloud sync
     cloud_url = os.getenv('CLOUD_URL', 'https://research-tracker-466018.uc.r.appspot.com')
     if all_papers_data:
-        try:
-            print(f"\n🌐 Syncing {len(all_papers_data)} recent papers to cloud...")
-            
-            response = requests.post(
-                f'{cloud_url}/api/sync-papers',
-                json=all_papers_data,
-                headers={'Content-Type': 'application/json'},
-                timeout=300
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                print(f"✅ Incremental sync successful!")
-                print(f"   🆕 New papers: {result.get('synced_papers', 0)}")
-                print(f"   🔄 Updated papers: {result.get('updated_papers', 0)}")
-                print(f"   📊 Total processed: {result.get('total_processed', 0)}")
-                
-                # Show efficiency gain
-                sync_efficiency = result.get('synced_papers', 0) / len(all_papers_data) * 100 if all_papers_data else 0
-                print(f"   📈 Sync efficiency: {sync_efficiency:.1f}% (new/processed)")
-                
-            else:
-                print(f"❌ Cloud sync failed: {response.status_code}")
-                print(f"Response: {response.text[:500]}")
-                
-        except Exception as e:
-            print(f"❌ Cloud sync error: {e}")
+        if not sync_to_cloud(all_papers_data, cloud_url):
+            return 1
     else:
         print("📝 No recent papers to sync")
     
     print(f"\n🎉 INCREMENTAL SYNC COMPLETED!")
     print(f"⚡ Much more efficient than full scraping!")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
